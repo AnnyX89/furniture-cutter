@@ -11,6 +11,16 @@ interface Room {
   ceilingColor: string;
 }
 
+// Ниша/выступ — прямоугольный выступ, вдающийся в комнату со стены
+interface Niche {
+  id: string;
+  name: string;
+  wall: 'top' | 'bottom' | 'left' | 'right';
+  pos: number;   // отступ от левого/верхнего угла стены (мм)
+  size: number;  // ширина ниши вдоль стены (мм)
+  depth: number; // глубина выступа В комнату (мм)
+}
+
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; }
 interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; }
 
@@ -28,8 +38,8 @@ interface PlacedItem {
   icon: string;
 }
 
-const SCALE = 0.12; // px per mm
-const GRID = 100; // mm
+const SCALE = 0.12;
+const GRID = 100;
 
 const WALL_COLORS = ['#f5f0eb','#e8e0d5','#d4c5b5','#f0e8d8','#e8f0e8','#d8e8f0','#e8d8f0','#f0d8d8','#ffffff','#f5f5f5','#2d2d2d'];
 const FLOOR_COLORS = ['#c8a97e','#a07850','#8b6340','#d4b896','#e8d5b8','#4a3728','#6b4c35','#c2b280','#f5e6c8','#9e7b5a','#2d2019'];
@@ -37,20 +47,90 @@ const CEIL_COLORS = ['#ffffff','#f8f8f0','#fffff0','#f0f8f8','#f5f0f5','#e8e8e8'
 
 function roomToScreen(v: number) { return v * SCALE; }
 
+// Генерирует SVG path для комнаты с нишами
+function buildRoomPath(room: Room, niches: Niche[]): string {
+  const W = room.width;
+  const H = room.height;
+
+  // Сортируем ниши по стенам и позиции
+  const top    = niches.filter(n => n.wall === 'top').sort((a,b) => a.pos - b.pos);
+  const bottom = niches.filter(n => n.wall === 'bottom').sort((a,b) => a.pos - b.pos);
+  const left   = niches.filter(n => n.wall === 'left').sort((a,b) => a.pos - b.pos);
+  const right  = niches.filter(n => n.wall === 'right').sort((a,b) => a.pos - b.pos);
+
+  const pts: [number,number][] = [];
+  const s = SCALE;
+
+  // Начинаем с верхнего левого угла, идём по часовой стрелке
+  // Верхняя стена (слева направо) — ниши идут вниз (в комнату)
+  pts.push([0, 0]);
+  for (const n of top) {
+    pts.push([n.pos * s, 0]);
+    pts.push([n.pos * s, n.depth * s]);
+    pts.push([(n.pos + n.size) * s, n.depth * s]);
+    pts.push([(n.pos + n.size) * s, 0]);
+  }
+  pts.push([W * s, 0]);
+
+  // Правая стена (сверху вниз) — ниши идут влево
+  for (const n of right) {
+    pts.push([W * s, n.pos * s]);
+    pts.push([(W - n.depth) * s, n.pos * s]);
+    pts.push([(W - n.depth) * s, (n.pos + n.size) * s]);
+    pts.push([W * s, (n.pos + n.size) * s]);
+  }
+  pts.push([W * s, H * s]);
+
+  // Нижняя стена (справа налево) — ниши идут вверх
+  for (const n of [...bottom].reverse()) {
+    pts.push([(n.pos + n.size) * s, H * s]);
+    pts.push([(n.pos + n.size) * s, (H - n.depth) * s]);
+    pts.push([n.pos * s, (H - n.depth) * s]);
+    pts.push([n.pos * s, H * s]);
+  }
+  pts.push([0, H * s]);
+
+  // Левая стена (снизу вверх) — ниши идут вправо
+  for (const n of [...left].reverse()) {
+    pts.push([0, (n.pos + n.size) * s]);
+    pts.push([n.depth * s, (n.pos + n.size) * s]);
+    pts.push([n.depth * s, n.pos * s]);
+    pts.push([0, n.pos * s]);
+  }
+
+  return 'M ' + pts.map(([x,y]) => `${x},${y}`).join(' L ') + ' Z';
+}
+
 export default function DesignerTab() {
   const [room, setRoom] = useState<Room>({ width: 4000, height: 5000, wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff' });
+  const [niches, setNiches] = useState<Niche[]>([]);
   const [items, setItems] = useState<PlacedItem[]>([]);
   const [doors, setDoors] = useState<Door[]>([]);
   const [windows, setWindows] = useState<Window[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('kitchen');
-  const [tab, setTab] = useState<'room'|'furniture'|'openings'>('furniture');
+  const [tab, setTab] = useState<'room'|'niches'|'furniture'|'openings'>('furniture');
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
 
   const RW = roomToScreen(room.width);
   const RH = roomToScreen(room.height);
   const PAD = 60;
+
+  function addNiche() {
+    setNiches(prev => [...prev, {
+      id: uuid(),
+      name: 'Ниша',
+      wall: 'left',
+      pos: 500,
+      size: 600,
+      depth: 300,
+    }]);
+  }
+
+  function updateNiche(id: string, changes: Partial<Niche>) {
+    setNiches(prev => prev.map(n => n.id === id ? {...n, ...changes} : n));
+  }
 
   function addFurniture(tpl: FurnitureTemplate) {
     const item: PlacedItem = {
@@ -101,11 +181,9 @@ export default function DesignerTab() {
     const mx = (e.clientX - rect.left - PAD) / SCALE;
     const my = (e.clientY - rect.top - PAD) / SCALE;
     const item = items.find(i => i.id === dragging.id)!;
-    // Snap to grid
     const snap = GRID;
     let nx = Math.round((mx - dragging.ox) / snap) * snap;
     let ny = Math.round((my - dragging.oy) / snap) * snap;
-    // Clamp to room
     nx = Math.max(0, Math.min(room.width - item.w, nx));
     ny = Math.max(0, Math.min(room.height - item.h, ny));
     setItems(prev => prev.map(i => i.id === dragging.id ? { ...i, x: nx, y: ny } : i));
@@ -122,7 +200,6 @@ export default function DesignerTab() {
 
   const selectedItem = items.find(i => i.id === selected);
 
-  // Draw grid lines
   const gridLines = [];
   for (let x = 0; x <= room.width; x += GRID) {
     gridLines.push(<line key={`gx${x}`} x1={x*SCALE} y1={0} x2={x*SCALE} y2={RH} stroke="#e5e7eb" strokeWidth="0.5" />);
@@ -131,24 +208,31 @@ export default function DesignerTab() {
     gridLines.push(<line key={`gy${y}`} x1={0} y1={y*SCALE} x2={RW} y2={y*SCALE} stroke="#e5e7eb" strokeWidth="0.5" />);
   }
 
+  const roomPath = buildRoomPath(room, niches);
+
+  const wallLabels: {x:number; y:number; label:string; rotate:boolean}[] = [
+    { x: PAD + RW/2, y: PAD - 10, label: `${room.width/1000} м`, rotate: false },
+    { x: PAD + RW + 10, y: PAD + RH/2, label: `${room.height/1000} м`, rotate: true },
+  ];
+
   return (
     <div className="flex h-[calc(100vh-120px)] gap-0 bg-gray-100 rounded-xl overflow-hidden border">
       {/* Sidebar */}
       <div className="w-72 flex-shrink-0 bg-white border-r flex flex-col">
-        {/* Sidebar tabs */}
-        <div className="flex border-b text-xs">
-          {[['furniture','🛋️ Мебель'],['room','🏠 Комната'],['openings','🚪 Проёмы']].map(([id,label]) => (
-            <button key={id} onClick={() => setTab(id as any)}
-              className={`flex-1 py-2 font-medium transition-colors ${tab===id ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+        <div className="flex border-b text-xs overflow-x-auto">
+          {([['furniture','🛋️ Мебель'],['room','🏠 Комната'],['niches','🔲 Ниши'],['openings','🚪 Проёмы']] as const).map(([id,label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`flex-shrink-0 px-3 py-2 font-medium transition-colors ${tab===id ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
               {label}
             </button>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto">
+
+          {/* Мебель */}
           {tab === 'furniture' && (
             <div>
-              {/* Category tabs */}
               <div className="p-2 flex flex-wrap gap-1">
                 {CATEGORIES.map(c => (
                   <button key={c.id} onClick={() => setActiveCategory(c.id)}
@@ -170,6 +254,7 @@ export default function DesignerTab() {
             </div>
           )}
 
+          {/* Комната */}
           {tab === 'room' && (
             <div className="p-3 space-y-4">
               <div>
@@ -186,8 +271,8 @@ export default function DesignerTab() {
                       value={room.height} onChange={e => setRoom(r => ({...r, height: +e.target.value}))} />
                   </div>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">Например: 3500 × 4200 мм</p>
               </div>
-
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Цвет стен</h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -198,7 +283,6 @@ export default function DesignerTab() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Цвет пола</h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -209,7 +293,6 @@ export default function DesignerTab() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Цвет потолка</h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -223,6 +306,83 @@ export default function DesignerTab() {
             </div>
           )}
 
+          {/* Ниши */}
+          {tab === 'niches' && (
+            <div className="p-3">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-700">Ниши и выступы</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">Выступы вдаются В комнату со стены</p>
+                </div>
+                <button onClick={addNiche} className="text-xs bg-blue-600 text-white px-2 py-1.5 rounded hover:bg-blue-700 flex-shrink-0">
+                  + Добавить
+                </button>
+              </div>
+
+              {niches.length === 0 && (
+                <div className="text-center py-6 text-gray-400 text-xs">
+                  <div className="text-2xl mb-2">🔲</div>
+                  <p>Нет ниш. Нажмите «+ Добавить»</p>
+                  <p className="mt-1">Используйте для колонн, ниш,<br/>выступов труб и т.д.</p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {niches.map(n => (
+                  <div key={n.id} className="border rounded-lg p-3 bg-gray-50 text-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <input
+                        className="font-medium text-gray-700 bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-blue-400 w-28 text-xs"
+                        value={n.name}
+                        onChange={e => updateNiche(n.id, {name: e.target.value})}
+                      />
+                      <button onClick={() => setNiches(prev => prev.filter(x => x.id !== n.id))}
+                        className="text-red-400 hover:text-red-600 text-sm">✕</button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-gray-400 block mb-0.5">Стена</label>
+                        <select className="w-full border rounded px-1 py-1 text-xs bg-white"
+                          value={n.wall} onChange={e => updateNiche(n.id, {wall: e.target.value as any})}>
+                          <option value="top">Верхняя</option>
+                          <option value="bottom">Нижняя</option>
+                          <option value="left">Левая</option>
+                          <option value="right">Правая</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-gray-400 block mb-0.5">Глубина (мм)</label>
+                        <input type="number" step="50" min="50" className="w-full border rounded px-1 py-1 text-xs bg-white"
+                          value={n.depth} onChange={e => updateNiche(n.id, {depth: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-gray-400 block mb-0.5">Отступ от угла (мм)</label>
+                        <input type="number" step="100" min="0" className="w-full border rounded px-1 py-1 text-xs bg-white"
+                          value={n.pos} onChange={e => updateNiche(n.id, {pos: +e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="text-gray-400 block mb-0.5">Ширина (мм)</label>
+                        <input type="number" step="100" min="100" className="w-full border rounded px-1 py-1 text-xs bg-white"
+                          value={n.size} onChange={e => updateNiche(n.id, {size: +e.target.value})} />
+                      </div>
+                    </div>
+
+                    {/* Mini preview hint */}
+                    <div className="mt-2 text-gray-400 text-xs bg-white rounded p-1.5 border">
+                      Со стены «{n.wall === 'top' ? 'Верхняя' : n.wall === 'bottom' ? 'Нижняя' : n.wall === 'left' ? 'Левая' : 'Правая'}»,
+                      отступ {n.pos} мм, шир. {n.size} мм, глуб. {n.depth} мм
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Проёмы */}
           {tab === 'openings' && (
             <div className="p-3 space-y-3">
               <div>
@@ -231,9 +391,9 @@ export default function DesignerTab() {
                   <button onClick={addDoor} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">+ Добавить</button>
                 </div>
                 {doors.map(d => (
-                  <div key={d.id} className="border rounded-lg p-2 mb-2 text-xs space-y-1">
+                  <div key={d.id} className="border rounded-lg p-2 mb-2 text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">Дверь</span>
+                      <span className="font-medium text-gray-700">🚪 Дверь</span>
                       <button onClick={() => setDoors(prev => prev.filter(x => x.id !== d.id))} className="text-red-400 hover:text-red-600">✕</button>
                     </div>
                     <div className="grid grid-cols-2 gap-1">
@@ -241,10 +401,10 @@ export default function DesignerTab() {
                         <label className="text-gray-400">Стена</label>
                         <select className="w-full border rounded px-1 py-0.5 text-xs"
                           value={d.wall} onChange={e => setDoors(prev => prev.map(x => x.id===d.id ? {...x, wall: e.target.value as any} : x))}>
-                          <option value="top">Верх</option>
-                          <option value="bottom">Низ</option>
-                          <option value="left">Лево</option>
-                          <option value="right">Право</option>
+                          <option value="top">Верхняя</option>
+                          <option value="bottom">Нижняя</option>
+                          <option value="left">Левая</option>
+                          <option value="right">Правая</option>
                         </select>
                       </div>
                       <div>
@@ -269,9 +429,9 @@ export default function DesignerTab() {
                   <button onClick={addWindow} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">+ Добавить</button>
                 </div>
                 {windows.map(w => (
-                  <div key={w.id} className="border rounded-lg p-2 mb-2 text-xs space-y-1">
+                  <div key={w.id} className="border rounded-lg p-2 mb-2 text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">Окно</span>
+                      <span className="font-medium text-gray-700">🪟 Окно</span>
                       <button onClick={() => setWindows(prev => prev.filter(x => x.id !== w.id))} className="text-red-400 hover:text-red-600">✕</button>
                     </div>
                     <div className="grid grid-cols-2 gap-1">
@@ -279,10 +439,10 @@ export default function DesignerTab() {
                         <label className="text-gray-400">Стена</label>
                         <select className="w-full border rounded px-1 py-0.5 text-xs"
                           value={w.wall} onChange={e => setWindows(prev => prev.map(x => x.id===w.id ? {...x, wall: e.target.value as any} : x))}>
-                          <option value="top">Верх</option>
-                          <option value="bottom">Низ</option>
-                          <option value="left">Лево</option>
-                          <option value="right">Право</option>
+                          <option value="top">Верхняя</option>
+                          <option value="bottom">Нижняя</option>
+                          <option value="left">Левая</option>
+                          <option value="right">Правая</option>
                         </select>
                       </div>
                       <div>
@@ -304,10 +464,10 @@ export default function DesignerTab() {
           )}
         </div>
 
-        {/* Selected item controls */}
+        {/* Выбранный предмет */}
         {selectedItem && (
           <div className="border-t p-3 bg-blue-50">
-            <div className="text-xs font-semibold text-blue-800 mb-2 truncate">{selectedItem.name}</div>
+            <div className="text-xs font-semibold text-blue-800 mb-1 truncate">{selectedItem.name}</div>
             <div className="text-xs text-gray-500 mb-2">{selectedItem.w} × {selectedItem.h} мм</div>
             <div className="flex gap-2">
               <button onClick={rotateSelected} className="flex-1 bg-white border text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">↺ Повернуть</button>
@@ -317,92 +477,106 @@ export default function DesignerTab() {
         )}
       </div>
 
-      {/* Canvas */}
+      {/* Канвас */}
       <div className="flex-1 overflow-auto bg-gray-200 p-4">
         <div className="mb-2 flex items-center gap-3 text-xs text-gray-500">
           <span>Комната: {room.width/1000}×{room.height/1000} м</span>
-          <span>· Сетка: 10 см</span>
+          <span>· Ниш: {niches.length}</span>
           <span>· Предметов: {items.length}</span>
-          <span className="ml-auto">Кликни на предмет чтобы выбрать, потом перетащи</span>
+          <span className="ml-auto text-gray-400">Кликни на предмет — перетащи</span>
         </div>
 
         <svg
           ref={canvasRef}
-          width={RW + PAD * 2}
-          height={RH + PAD * 2}
+          width={RW + PAD * 2 + 20}
+          height={RH + PAD * 2 + 20}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseUp}
           onClick={() => setSelected(null)}
-          className="cursor-default"
-          style={{ userSelect: 'none' }}
+          style={{ userSelect: 'none', cursor: 'default' }}
         >
-          {/* Room area with floor color */}
-          <rect x={PAD} y={PAD} width={RW} height={RH} fill={room.floorColor} />
+          <defs>
+            <clipPath id="roomClip">
+              <path d={roomPath} transform={`translate(${PAD},${PAD})`} />
+            </clipPath>
+          </defs>
 
-          {/* Grid */}
-          <g transform={`translate(${PAD},${PAD})`}>
+          {/* Пол — заполняет форму комнаты */}
+          <path d={roomPath} transform={`translate(${PAD},${PAD})`} fill={room.floorColor} />
+
+          {/* Сетка внутри комнаты */}
+          <g clipPath="url(#roomClip)" transform={`translate(${PAD},${PAD})`}>
             {gridLines}
           </g>
 
-          {/* Walls */}
-          <rect x={PAD} y={PAD} width={RW} height={RH} fill="none" stroke={room.wallColor} strokeWidth="16" />
+          {/* Стены */}
+          <path d={roomPath} transform={`translate(${PAD},${PAD})`}
+            fill="none" stroke={room.wallColor} strokeWidth="14" strokeLinejoin="round" />
 
-          {/* Wall dimension labels */}
-          <text x={PAD + RW/2} y={PAD - 8} textAnchor="middle" fontSize="11" fill="#6b7280">{room.width/1000} м</text>
-          <text x={PAD - 8} y={PAD + RH/2} textAnchor="middle" fontSize="11" fill="#6b7280" transform={`rotate(-90, ${PAD-8}, ${PAD+RH/2})`}>{room.height/1000} м</text>
+          {/* Ниши — подписи */}
+          {niches.map(n => {
+            let tx = 0, ty = 0;
+            if (n.wall === 'top')    { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + n.depth*SCALE/2; }
+            if (n.wall === 'bottom') { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + RH - n.depth*SCALE/2; }
+            if (n.wall === 'left')   { tx = PAD + n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
+            if (n.wall === 'right')  { tx = PAD + RW - n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
+            return (
+              <text key={n.id} x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
+                fontSize="8" fill="#6b7280" fontStyle="italic">{n.name}</text>
+            );
+          })}
 
-          {/* Doors */}
+          {/* Двери */}
           {doors.map(d => {
-            const s = d.pos * SCALE;
-            const sz = d.size * SCALE;
-            const W16 = 16;
+            const s = d.pos * SCALE; const sz = d.size * SCALE; const W8 = 14;
             let x1=0,y1=0,x2=0,y2=0;
-            if (d.wall==='top')    { x1=PAD+s; y1=PAD-W16/2; x2=PAD+s+sz; y2=PAD+W16/2; }
-            if (d.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W16/2; x2=PAD+s+sz; y2=PAD+RH+W16/2; }
-            if (d.wall==='left')   { x1=PAD-W16/2; y1=PAD+s; x2=PAD+W16/2; y2=PAD+s+sz; }
-            if (d.wall==='right')  { x1=PAD+RW-W16/2; y1=PAD+s; x2=PAD+RW+W16/2; y2=PAD+s+sz; }
-            return <rect key={d.id} x={x1} y={y1} width={x2-x1} height={y2-y1} fill={room.floorColor} stroke="#92400e" strokeWidth="1" strokeDasharray="4,2" />;
+            if (d.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
+            if (d.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
+            if (d.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
+            if (d.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
+            return <rect key={d.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
+              fill={room.floorColor} stroke="#92400e" strokeWidth="1.5" strokeDasharray="4,2" />;
           })}
 
-          {/* Windows */}
+          {/* Окна */}
           {windows.map(w => {
-            const s = w.pos * SCALE;
-            const sz = w.size * SCALE;
-            const W16 = 16;
+            const s = w.pos * SCALE; const sz = w.size * SCALE; const W8 = 14;
             let x1=0,y1=0,x2=0,y2=0;
-            if (w.wall==='top')    { x1=PAD+s; y1=PAD-W16/2; x2=PAD+s+sz; y2=PAD+W16/2; }
-            if (w.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W16/2; x2=PAD+s+sz; y2=PAD+RH+W16/2; }
-            if (w.wall==='left')   { x1=PAD-W16/2; y1=PAD+s; x2=PAD+W16/2; y2=PAD+s+sz; }
-            if (w.wall==='right')  { x1=PAD+RW-W16/2; y1=PAD+s; x2=PAD+RW+W16/2; y2=PAD+s+sz; }
-            return <rect key={w.id} x={x1} y={y1} width={x2-x1} height={y2-y1} fill="#bae6fd" stroke="#0369a1" strokeWidth="1.5" />;
+            if (w.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
+            if (w.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
+            if (w.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
+            if (w.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
+            return <rect key={w.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
+              fill="#bae6fd" stroke="#0369a1" strokeWidth="2" />;
           })}
 
-          {/* Furniture */}
+          {/* Размерные подписи */}
+          {wallLabels.map((l,i) => (
+            <text key={i} x={l.x} y={l.y} textAnchor="middle" fontSize="11" fill="#6b7280"
+              transform={l.rotate ? `rotate(-90, ${l.x}, ${l.y})` : undefined}>{l.label}</text>
+          ))}
+
+          {/* Мебель */}
           <g transform={`translate(${PAD},${PAD})`}>
             {items.map(item => {
               const x = item.x * SCALE;
               const y = item.y * SCALE;
               const w = item.w * SCALE;
               const h = item.h * SCALE;
-              const isSelected = item.id === selected;
+              const isSel = item.id === selected;
               return (
-                <g key={item.id}
-                  style={{ cursor: 'grab' }}
+                <g key={item.id} style={{ cursor: 'grab' }}
                   onMouseDown={e => onMouseDown(e, item.id)}
                   onClick={e => { e.stopPropagation(); setSelected(item.id); }}>
                   {item.shape === 'circle'
                     ? <ellipse cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
-                        fill={item.color} stroke={isSelected ? '#2563eb' : '#9ca3af'}
-                        strokeWidth={isSelected ? 2 : 1} />
+                        fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
                     : <rect x={x} y={y} width={w} height={h} rx="2"
-                        fill={item.color} stroke={isSelected ? '#2563eb' : '#9ca3af'}
-                        strokeWidth={isSelected ? 2 : 1} />
+                        fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
                   }
-                  {isSelected && (
-                    <rect x={x-2} y={y-2} width={w+4} height={h+4} fill="none"
-                      stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4,2" rx="3" />
-                  )}
+                  {isSel && <rect x={x-2} y={y-2} width={w+4} height={h+4} fill="none"
+                    stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4,2" rx="3" />}
                   {w > 25 && h > 18 && (
                     <text x={x+w/2} y={y+h/2} textAnchor="middle" dominantBaseline="middle"
                       fontSize={Math.min(10, w/8, h/3)} fill="#374151" style={{pointerEvents:'none'}}>
@@ -414,11 +588,6 @@ export default function DesignerTab() {
               );
             })}
           </g>
-
-          {/* Room corner marks */}
-          {[[PAD,PAD],[PAD+RW,PAD],[PAD,PAD+RH],[PAD+RW,PAD+RH]].map(([cx,cy],i) => (
-            <circle key={i} cx={cx} cy={cy} r={3} fill="#6b7280" />
-          ))}
         </svg>
       </div>
     </div>

@@ -66,4 +66,4 @@ export interface CuttingResult {
   unplacedParts: { part: Part; count: number }[];
 }
 
-export type TabId = 'materials' | 'parts' | 'cutting' | 'reports' | 'designer' | 'help';
+export type TabId = 'materials' | 'parts' | 'cutting' | 'reports' | 'designer' | 'buy' | 'help';

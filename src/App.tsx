@@ -172,7 +172,16 @@ export default function App() {
         {tab === 'parts' && <PartsTab project={current} onChange={handleProjectChange} />}
         {tab === 'cutting' && <CuttingTab project={current} />}
         {tab === 'reports' && <ReportsTab project={current} />}
-        {tab === 'designer' && <DesignerTab />}
+        {tab === 'designer' && (
+          <DesignerTab
+            firstMaterialId={current.materials[0]?.id ?? ''}
+            onSendToCutting={parts => {
+              const updated = { ...current, parts: [...current.parts, ...parts], updatedAt: new Date().toISOString() };
+              handleProjectChange(updated);
+              setTab('parts');
+            }}
+          />
+        )}
         {tab === 'buy' && <WhereToBuyTab />}
         {tab === 'help' && <HelpPage />}
       </main>

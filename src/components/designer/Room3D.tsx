@@ -104,8 +104,8 @@ export default function Room3D({ room, items, ceilingHeight = 2500 }: Room3DProp
   const H = ceilingHeight * MM;
   const maxDim = Math.max(W, D, H);
 
-  const camPos: [number, number, number] = [W / 2, maxDim * 1.2, D * 1.8];
-  const target: [number, number, number] = [W / 2, 0, D / 2];
+  const camPos: [number, number, number] = [W * 1.2, maxDim * 1.4, D * 1.6];
+  const target: [number, number, number] = [W / 2, H / 4, D / 2];
 
   return (
     <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden">

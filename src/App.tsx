@@ -45,6 +45,9 @@ export default function App() {
   const [showNew, setShowNew] = useState(false);
 
   useEffect(() => {
+    if (window.location.hash.includes('error=')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);

@@ -301,12 +301,18 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   <div>
                     <label className="text-xs text-gray-400">Ширина</label>
                     <input type="number" step="100" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
-                      value={room.width} onChange={e => setRoom(r => ({...r, width: +e.target.value}))} />
+                      value={room.width}
+                      onChange={e => setRoom(r => ({...r, width: +e.target.value || r.width}))}
+                      onBlur={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value || r.width)}))}
+                      onFocus={e => e.target.select()} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-400">Длина</label>
                     <input type="number" step="100" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
-                      value={room.height} onChange={e => setRoom(r => ({...r, height: +e.target.value}))} />
+                      value={room.height}
+                      onChange={e => setRoom(r => ({...r, height: +e.target.value || r.height}))}
+                      onBlur={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value || r.height)}))}
+                      onFocus={e => e.target.select()} />
                   </div>
                 </div>
               </div>
@@ -468,14 +474,18 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 <label className="text-xs text-gray-400">Ш (мм)</label>
                 <input type="number" step="100" min="100" max="5000"
                   value={selectedItem.w}
-                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: Math.max(100, +e.target.value) } : i))}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: +e.target.value || i.w } : i))}
+                  onBlur={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: Math.max(100, +e.target.value || i.w) } : i))}
+                  onFocus={e => e.target.select()}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
               <div>
                 <label className="text-xs text-gray-400">Г (мм)</label>
                 <input type="number" step="100" min="100" max="5000"
                   value={selectedItem.h}
-                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: Math.max(100, +e.target.value) } : i))}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: +e.target.value || i.h } : i))}
+                  onBlur={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: Math.max(100, +e.target.value || i.h) } : i))}
+                  onFocus={e => e.target.select()}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
             </div>
@@ -526,13 +536,17 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             <span className="text-gray-400">Комната:</span>
             <input type="number" step="100" min="500" max="20000"
               value={room.width}
-              onChange={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value)}))}
+              onChange={e => setRoom(r => ({...r, width: +e.target.value || r.width}))}
+              onBlur={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value || r.width)}))}
+              onFocus={e => e.target.select()}
               className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
               title="Ширина комнаты (мм)" />
             <span className="text-gray-400">×</span>
             <input type="number" step="100" min="500" max="20000"
               value={room.height}
-              onChange={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value)}))}
+              onChange={e => setRoom(r => ({...r, height: +e.target.value || r.height}))}
+              onBlur={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value || r.height)}))}
+              onFocus={e => e.target.select()}
               className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
               title="Длина комнаты (мм)" />
             <span className="text-gray-400 mr-2">мм</span>

@@ -52,6 +52,7 @@ function FurnitureMesh({ item }: { item: Item3D }) {
         color={item.color}
         roughness={facade.roughness}
         metalness={facade.metalness}
+        side={THREE.DoubleSide}
       />
     </mesh>
   );
@@ -71,34 +72,22 @@ function RoomScene({ room, items, ceilingHeight = 2500 }: Room3DProps) {
       {/* Пол */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0, D / 2]}>
         <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color={room.floorColor} roughness={0.85} side={THREE.FrontSide} />
+        <meshStandardMaterial color={room.floorColor} roughness={0.85} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Потолок */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[W / 2, H, D / 2]}>
-        <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color={room.ceilingColor} roughness={0.95} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* Задняя стена */}
+      {/* Задняя стена (z=0) */}
       <mesh position={[W / 2, H / 2, 0]}>
         <planeGeometry args={[W, H]} />
         <meshStandardMaterial color={room.wallColor} roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Передняя стена */}
-      <mesh position={[W / 2, H / 2, D]}>
-        <planeGeometry args={[W, H]} />
-        <meshStandardMaterial color={room.wallColor} roughness={0.9} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* Левая стена */}
+      {/* Левая стена (x=0) */}
       <mesh position={[0, H / 2, D / 2]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[D, H]} />
         <meshStandardMaterial color={room.wallColor} roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Правая стена */}
+      {/* Правая стена (x=W) */}
       <mesh position={[W, H / 2, D / 2]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[D, H]} />
         <meshStandardMaterial color={room.wallColor} roughness={0.9} side={THREE.DoubleSide} />
@@ -115,8 +104,8 @@ export default function Room3D({ room, items, ceilingHeight = 2500 }: Room3DProp
   const H = ceilingHeight * MM;
   const maxDim = Math.max(W, D, H);
 
-  const camPos: [number, number, number] = [W * 1.2, maxDim * 1.4, D * 1.6];
-  const target: [number, number, number] = [W / 2, H / 4, D / 2];
+  const camPos: [number, number, number] = [W / 2, maxDim * 1.2, D * 1.8];
+  const target: [number, number, number] = [W / 2, 0, D / 2];
 
   return (
     <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden">

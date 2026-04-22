@@ -4,7 +4,7 @@ import type { FurnitureTemplate } from './furnitureLibrary';
 import { COLOR_SCHEMES, FACADE_OPTIONS } from './colorSchemes';
 import type { FacadeStyle, ColorScheme } from './colorSchemes';
 import { generateFurnitureParts } from './furnitureParts';
-import type { Part } from '../../types';
+import type { Part, Project, RoomDesign } from '../../types';
 import { v4 as uuid } from 'uuid';
 
 const Room3D = lazy(() => import('./Room3D'));
@@ -26,8 +26,8 @@ interface Niche {
   depth: number;
 }
 
-interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; }
-interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; }
+interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
+interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 
 interface PlacedItem {
   id: string;
@@ -47,6 +47,8 @@ interface PlacedItem {
 interface DesignerTabProps {
   onSendToCutting?: (parts: Part[]) => void;
   firstMaterialId?: string;
+  project?: Project;
+  onSaveDesign?: (design: RoomDesign) => void;
 }
 
 const SCALE = 0.12;
@@ -78,12 +80,13 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   return 'M ' + pts.map(([x,y]) => `${x},${y}`).join(' L ') + ' Z';
 }
 
-export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: DesignerTabProps) {
-  const [room, setRoom] = useState<Room>({ width: 4000, height: 5000, wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff' });
-  const [niches, setNiches] = useState<Niche[]>([]);
-  const [items, setItems] = useState<PlacedItem[]>([]);
-  const [doors, setDoors] = useState<Door[]>([]);
-  const [windows, setWindows] = useState<Window[]>([]);
+export default function DesignerTab({ onSendToCutting, firstMaterialId = '', project, onSaveDesign }: DesignerTabProps) {
+  const saved = project?.design;
+  const [room, setRoom] = useState<Room>(saved?.room ?? { width: 4000, height: 5000, wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff' });
+  const [niches, setNiches] = useState<Niche[]>((saved?.niches as Niche[]) ?? []);
+  const [items, setItems] = useState<PlacedItem[]>((saved?.items as PlacedItem[]) ?? []);
+  const [doors, setDoors] = useState<Door[]>((saved?.doors as Door[]) ?? []);
+  const [windows, setWindows] = useState<Window[]>((saved?.windows as Window[]) ?? []);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('kitchen');
   const [sideTab, setSideTab] = useState<'room'|'niches'|'furniture'|'openings'>('furniture');
@@ -429,8 +432,19 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
                           <input type="number" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
                             value={d.size} onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, size: +e.target.value} : x))} />
                         </div>
-                        <div className="col-span-2">
-                          <label className="text-gray-400">Отступ от угла мм</label>
+                        <div>
+                          <label className="text-gray-400">От угла</label>
+                          <select className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
+                            value={d.fromEnd ? 'end' : 'start'}
+                            onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, fromEnd: e.target.value==='end'} : x))}>
+                            {(d.wall==='top'||d.wall==='bottom')
+                              ? <><option value="start">Левого</option><option value="end">Правого</option></>
+                              : <><option value="start">Верхнего</option><option value="end">Нижнего</option></>
+                            }
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-gray-400">Отступ мм</label>
                           <input type="number" step="100" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
                             value={d.pos} onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, pos: +e.target.value} : x))} />
                         </div>
@@ -447,8 +461,24 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
         {/* Панель выбранного предмета */}
         {selectedItem && (
           <div className="border-t p-3 bg-blue-50 flex-shrink-0">
-            <div className="text-xs font-semibold text-blue-800 mb-0.5 truncate">{selectedItem.name}</div>
-            <div className="text-xs text-gray-500 mb-2">{selectedItem.w} × {selectedItem.h} мм</div>
+            <div className="text-xs font-semibold text-blue-800 mb-1.5 truncate">{selectedItem.name}</div>
+            {/* Размеры модуля */}
+            <div className="grid grid-cols-2 gap-1.5 mb-2">
+              <div>
+                <label className="text-xs text-gray-400">Ш (мм)</label>
+                <input type="number" step="100" min="100" max="5000"
+                  value={selectedItem.w}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: Math.max(100, +e.target.value) } : i))}
+                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Г (мм)</label>
+                <input type="number" step="100" min="100" max="5000"
+                  value={selectedItem.h}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: Math.max(100, +e.target.value) } : i))}
+                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+              </div>
+            </div>
             <div className="flex gap-1.5 mb-3">
               <button onClick={rotateSelected} className="flex-1 bg-white border text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">↺ Повернуть</button>
               <button onClick={removeSelected} className="flex-1 bg-red-50 border border-red-200 text-red-600 text-xs py-1.5 rounded hover:bg-red-100">✕ Удалить</button>
@@ -491,6 +521,23 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
 
         {/* Тулбар */}
         <div className="bg-white border-b px-3 py-1.5 flex items-center gap-2 flex-wrap flex-shrink-0">
+          {/* Размеры комнаты */}
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-gray-400">Комната:</span>
+            <input type="number" step="100" min="500" max="20000"
+              value={room.width}
+              onChange={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value)}))}
+              className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+              title="Ширина комнаты (мм)" />
+            <span className="text-gray-400">×</span>
+            <input type="number" step="100" min="500" max="20000"
+              value={room.height}
+              onChange={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value)}))}
+              className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+              title="Длина комнаты (мм)" />
+            <span className="text-gray-400 mr-2">мм</span>
+          </div>
+
           {/* Статистика */}
           <div className="flex items-center gap-3 text-xs text-gray-500 mr-2">
             <span title="Площадь комнаты">📐 {roomAreaM2.toFixed(1)} м²</span>
@@ -514,6 +561,14 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
           {view === '2d' && measureMode && (
             <button onClick={resetMeasure} className="text-xs px-2 py-1.5 rounded border border-gray-300 text-gray-500 hover:bg-gray-50">
               ✕ Сбросить
+            </button>
+          )}
+
+          {/* Сохранить дизайн */}
+          {onSaveDesign && (
+            <button onClick={() => onSaveDesign({ room, items, doors, windows, niches })}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">
+              💾 Сохранить
             </button>
           )}
 
@@ -593,7 +648,10 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
 
               {/* Двери */}
               {doors.map(d => {
-                const s=d.pos*SCALE; const sz=d.size*SCALE; const W8=14;
+                const isH = d.wall==='top'||d.wall==='bottom';
+                const wallLen = isH ? room.width : room.height;
+                const rawPos = d.fromEnd ? wallLen - d.pos - d.size : d.pos;
+                const s=rawPos*SCALE; const sz=d.size*SCALE; const W8=14;
                 let x1=0,y1=0,x2=0,y2=0;
                 if (d.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
                 if (d.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
@@ -605,7 +663,10 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '' }: D
 
               {/* Окна */}
               {windows.map(w => {
-                const s=w.pos*SCALE; const sz=w.size*SCALE; const W8=14;
+                const isH = w.wall==='top'||w.wall==='bottom';
+                const wallLen = isH ? room.width : room.height;
+                const rawPos = w.fromEnd ? wallLen - w.pos - w.size : w.pos;
+                const s=rawPos*SCALE; const sz=w.size*SCALE; const W8=14;
                 let x1=0,y1=0,x2=0,y2=0;
                 if (w.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
                 if (w.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }

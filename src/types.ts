@@ -27,12 +27,21 @@ export interface Part {
   edgeBanding: EdgeBanding;
 }
 
+export interface RoomDesign {
+  room: { width: number; height: number; wallColor: string; floorColor: string; ceilingColor: string };
+  items: unknown[];
+  doors: unknown[];
+  windows: unknown[];
+  niches: unknown[];
+}
+
 export interface Project {
   id: string;
   name: string;
   kerf: number;
   materials: Material[];
   parts: Part[];
+  design?: RoomDesign;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,7 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { FURNITURE, CATEGORIES } from './furnitureLibrary';
 import type { FurnitureTemplate } from './furnitureLibrary';
+import { COLOR_SCHEMES, FACADE_OPTIONS } from './colorSchemes';
+import type { FacadeStyle, ColorScheme } from './colorSchemes';
 import { v4 as uuid } from 'uuid';
+
+const Room3D = lazy(() => import('./Room3D'));
 
 interface Room {
   width: number;
@@ -11,14 +15,13 @@ interface Room {
   ceilingColor: string;
 }
 
-// Ниша/выступ — прямоугольный выступ, вдающийся в комнату со стены
 interface Niche {
   id: string;
   name: string;
   wall: 'top' | 'bottom' | 'left' | 'right';
-  pos: number;   // отступ от левого/верхнего угла стены (мм)
-  size: number;  // ширина ниши вдоль стены (мм)
-  depth: number; // глубина выступа В комнату (мм)
+  pos: number;
+  size: number;
+  depth: number;
 }
 
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; }
@@ -34,6 +37,7 @@ interface PlacedItem {
   h: number;
   rotation: number;
   color: string;
+  facadeStyle: FacadeStyle;
   shape?: string;
   icon: string;
 }
@@ -47,12 +51,9 @@ const CEIL_COLORS = ['#ffffff','#f8f8f0','#fffff0','#f0f8f8','#f5f0f5','#e8e8e8'
 
 function roomToScreen(v: number) { return v * SCALE; }
 
-// Генерирует SVG path для комнаты с нишами
 function buildRoomPath(room: Room, niches: Niche[]): string {
   const W = room.width;
   const H = room.height;
-
-  // Сортируем ниши по стенам и позиции
   const top    = niches.filter(n => n.wall === 'top').sort((a,b) => a.pos - b.pos);
   const bottom = niches.filter(n => n.wall === 'bottom').sort((a,b) => a.pos - b.pos);
   const left   = niches.filter(n => n.wall === 'left').sort((a,b) => a.pos - b.pos);
@@ -61,8 +62,6 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   const pts: [number,number][] = [];
   const s = SCALE;
 
-  // Начинаем с верхнего левого угла, идём по часовой стрелке
-  // Верхняя стена (слева направо) — ниши идут вниз (в комнату)
   pts.push([0, 0]);
   for (const n of top) {
     pts.push([n.pos * s, 0]);
@@ -72,7 +71,6 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   }
   pts.push([W * s, 0]);
 
-  // Правая стена (сверху вниз) — ниши идут влево
   for (const n of right) {
     pts.push([W * s, n.pos * s]);
     pts.push([(W - n.depth) * s, n.pos * s]);
@@ -81,7 +79,6 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   }
   pts.push([W * s, H * s]);
 
-  // Нижняя стена (справа налево) — ниши идут вверх
   for (const n of [...bottom].reverse()) {
     pts.push([(n.pos + n.size) * s, H * s]);
     pts.push([(n.pos + n.size) * s, (H - n.depth) * s]);
@@ -90,7 +87,6 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   }
   pts.push([0, H * s]);
 
-  // Левая стена (снизу вверх) — ниши идут вправо
   for (const n of [...left].reverse()) {
     pts.push([0, (n.pos + n.size) * s]);
     pts.push([n.depth * s, (n.pos + n.size) * s]);
@@ -111,21 +107,21 @@ export default function DesignerTab() {
   const [activeCategory, setActiveCategory] = useState('kitchen');
   const [tab, setTab] = useState<'room'|'niches'|'furniture'|'openings'>('furniture');
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
+  const [view, setView] = useState<'2d' | '3d'>('2d');
+  const [activeScheme, setActiveScheme] = useState<string | null>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
 
   const RW = roomToScreen(room.width);
   const RH = roomToScreen(room.height);
   const PAD = 60;
 
+  function applyScheme(scheme: ColorScheme) {
+    setRoom(r => ({ ...r, wallColor: scheme.wallColor, floorColor: scheme.floorColor, ceilingColor: scheme.ceilingColor }));
+    setActiveScheme(scheme.id);
+  }
+
   function addNiche() {
-    setNiches(prev => [...prev, {
-      id: uuid(),
-      name: 'Ниша',
-      wall: 'left',
-      pos: 500,
-      size: 600,
-      depth: 300,
-    }]);
+    setNiches(prev => [...prev, { id: uuid(), name: 'Ниша', wall: 'left', pos: 500, size: 600, depth: 300 }]);
   }
 
   function updateNiche(id: string, changes: Partial<Niche>) {
@@ -143,6 +139,7 @@ export default function DesignerTab() {
       h: tpl.h,
       rotation: 0,
       color: tpl.color,
+      facadeStyle: 'matte',
       shape: tpl.shape,
       icon: tpl.icon,
     };
@@ -257,6 +254,25 @@ export default function DesignerTab() {
           {/* Комната */}
           {tab === 'room' && (
             <div className="p-3 space-y-4">
+              {/* Цветовые схемы */}
+              <div>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Готовые схемы интерьера</h4>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {COLOR_SCHEMES.map(scheme => (
+                    <button key={scheme.id} onClick={() => applyScheme(scheme)}
+                      className={`p-2 rounded-lg border-2 text-left transition-all hover:shadow-sm ${activeScheme === scheme.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="flex gap-1 mb-1">
+                        {scheme.preview.map((c, i) => (
+                          <div key={i} className="w-3.5 h-3.5 rounded-full border border-white shadow-sm flex-shrink-0" style={{background: c}} />
+                        ))}
+                      </div>
+                      <div className="text-xs font-medium text-gray-700 leading-tight">{scheme.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Размеры */}
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Размеры комнаты</h4>
                 <div className="grid grid-cols-2 gap-2">
@@ -273,6 +289,7 @@ export default function DesignerTab() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Например: 3500 × 4200 мм</p>
               </div>
+
               <div>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Цвет стен</h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -339,12 +356,11 @@ export default function DesignerTab() {
                       <button onClick={() => setNiches(prev => prev.filter(x => x.id !== n.id))}
                         className="text-red-400 hover:text-red-600 text-sm">✕</button>
                     </div>
-
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
                         <label className="text-gray-400 block mb-0.5">Стена</label>
                         <select className="w-full border rounded px-1 py-1 text-xs bg-white"
-                          value={n.wall} onChange={e => updateNiche(n.id, {wall: e.target.value as any})}>
+                          value={n.wall} onChange={e => updateNiche(n.id, {wall: e.target.value as 'top'|'bottom'|'left'|'right'})}>
                           <option value="top">Верхняя</option>
                           <option value="bottom">Нижняя</option>
                           <option value="left">Левая</option>
@@ -357,7 +373,6 @@ export default function DesignerTab() {
                           value={n.depth} onChange={e => updateNiche(n.id, {depth: +e.target.value})} />
                       </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-gray-400 block mb-0.5">Отступ от угла (мм)</label>
@@ -370,10 +385,8 @@ export default function DesignerTab() {
                           value={n.size} onChange={e => updateNiche(n.id, {size: +e.target.value})} />
                       </div>
                     </div>
-
-                    {/* Mini preview hint */}
                     <div className="mt-2 text-gray-400 text-xs bg-white rounded p-1.5 border">
-                      Со стены «{n.wall === 'top' ? 'Верхняя' : n.wall === 'bottom' ? 'Нижняя' : n.wall === 'left' ? 'Левая' : 'Правая'}»,
+                      Стена «{n.wall === 'top' ? 'Верхняя' : n.wall === 'bottom' ? 'Нижняя' : n.wall === 'left' ? 'Левая' : 'Правая'}»,
                       отступ {n.pos} мм, шир. {n.size} мм, глуб. {n.depth} мм
                     </div>
                   </div>
@@ -400,7 +413,7 @@ export default function DesignerTab() {
                       <div>
                         <label className="text-gray-400">Стена</label>
                         <select className="w-full border rounded px-1 py-0.5 text-xs"
-                          value={d.wall} onChange={e => setDoors(prev => prev.map(x => x.id===d.id ? {...x, wall: e.target.value as any} : x))}>
+                          value={d.wall} onChange={e => setDoors(prev => prev.map(x => x.id===d.id ? {...x, wall: e.target.value as 'top'|'bottom'|'left'|'right'} : x))}>
                           <option value="top">Верхняя</option>
                           <option value="bottom">Нижняя</option>
                           <option value="left">Левая</option>
@@ -438,7 +451,7 @@ export default function DesignerTab() {
                       <div>
                         <label className="text-gray-400">Стена</label>
                         <select className="w-full border rounded px-1 py-0.5 text-xs"
-                          value={w.wall} onChange={e => setWindows(prev => prev.map(x => x.id===w.id ? {...x, wall: e.target.value as any} : x))}>
+                          value={w.wall} onChange={e => setWindows(prev => prev.map(x => x.id===w.id ? {...x, wall: e.target.value as 'top'|'bottom'|'left'|'right'} : x))}>
                           <option value="top">Верхняя</option>
                           <option value="bottom">Нижняя</option>
                           <option value="left">Левая</option>
@@ -469,126 +482,180 @@ export default function DesignerTab() {
           <div className="border-t p-3 bg-blue-50">
             <div className="text-xs font-semibold text-blue-800 mb-1 truncate">{selectedItem.name}</div>
             <div className="text-xs text-gray-500 mb-2">{selectedItem.w} × {selectedItem.h} мм</div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-3">
               <button onClick={rotateSelected} className="flex-1 bg-white border text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">↺ Повернуть</button>
               <button onClick={removeSelected} className="flex-1 bg-red-50 border border-red-200 text-red-600 text-xs py-1.5 rounded hover:bg-red-100">✕ Удалить</button>
+            </div>
+
+            {/* Цвет в 2D */}
+            <div className="mb-2">
+              <div className="text-xs text-gray-500 mb-1">Цвет (2D план)</div>
+              <div className="flex flex-wrap gap-1">
+                {['#c8d6e5','#a29bfe','#6c5ce7','#74b9ff','#0984e3','#55efc4','#00b894','#ffeaa7','#fdcb6e','#e17055','#d63031','#fd79a8','#e84393','#636e72','#2d3436','#ffffff','#f5f5f5','#dfe6e9'].map(c => (
+                  <button key={c}
+                    onClick={() => setItems(prev => prev.map(i => i.id === selected ? {...i, color: c} : i))}
+                    className={`w-5 h-5 rounded border-2 transition-transform ${selectedItem.color === c ? 'border-blue-500 scale-110' : 'border-transparent'}`}
+                    style={{background: c}} />
+                ))}
+              </div>
+            </div>
+
+            {/* Стиль фасада */}
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Фасад (3D вид)</div>
+              <div className="grid grid-cols-3 gap-1">
+                {FACADE_OPTIONS.map(f => (
+                  <button key={f.id}
+                    onClick={() => setItems(prev => prev.map(i => i.id === selected ? {...i, facadeStyle: f.id} : i))}
+                    title={f.description}
+                    className={`text-xs py-1 px-1 rounded border transition-colors leading-tight ${selectedItem.facadeStyle === f.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
+                    {f.icon} {f.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {/* Канвас */}
-      <div className="flex-1 overflow-auto bg-gray-200 p-4">
-        <div className="mb-2 flex items-center gap-3 text-xs text-gray-500">
+      <div className="flex-1 overflow-hidden bg-gray-200 flex flex-col">
+        {/* Toolbar */}
+        <div className="px-4 py-2 flex items-center gap-3 text-xs text-gray-500 bg-gray-100 border-b">
           <span>Комната: {room.width/1000}×{room.height/1000} м</span>
-          <span>· Ниш: {niches.length}</span>
           <span>· Предметов: {items.length}</span>
-          <span className="ml-auto text-gray-400">Кликни на предмет — перетащи</span>
+          <div className="ml-auto flex items-center gap-2">
+            {view === '2d' && <span className="text-gray-400">Кликни — выбери, перетащи</span>}
+            {view === '3d' && <span className="text-gray-400">Перейди в «Комната» → выбери схему</span>}
+            <div className="flex rounded-lg border bg-white overflow-hidden">
+              <button onClick={() => setView('2d')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === '2d' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                📐 2D план
+              </button>
+              <button onClick={() => setView('3d')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === '3d' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                🧊 3D вид
+              </button>
+            </div>
+          </div>
         </div>
 
-        <svg
-          ref={canvasRef}
-          width={RW + PAD * 2 + 20}
-          height={RH + PAD * 2 + 20}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-          onClick={() => setSelected(null)}
-          style={{ userSelect: 'none', cursor: 'default' }}
-        >
-          <defs>
-            <clipPath id="roomClip">
-              <path d={roomPath} transform={`translate(${PAD},${PAD})`} />
-            </clipPath>
-          </defs>
+        {/* 3D View */}
+        {view === '3d' && (
+          <div className="flex-1 relative">
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full bg-gray-900 text-white text-sm">
+                <div className="text-center">
+                  <div className="text-3xl mb-3 animate-pulse">🧊</div>
+                  <div>Загрузка 3D...</div>
+                </div>
+              </div>
+            }>
+              <Room3D room={room} items={items} />
+            </Suspense>
+          </div>
+        )}
 
-          {/* Пол — заполняет форму комнаты */}
-          <path d={roomPath} transform={`translate(${PAD},${PAD})`} fill={room.floorColor} />
+        {/* 2D View */}
+        {view === '2d' && (
+          <div className="flex-1 overflow-auto p-4">
+            <svg
+              ref={canvasRef}
+              width={RW + PAD * 2 + 20}
+              height={RH + PAD * 2 + 20}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseUp}
+              onClick={() => setSelected(null)}
+              style={{ userSelect: 'none', cursor: 'default' }}
+            >
+              <defs>
+                <clipPath id="roomClip">
+                  <path d={roomPath} transform={`translate(${PAD},${PAD})`} />
+                </clipPath>
+              </defs>
 
-          {/* Сетка внутри комнаты */}
-          <g clipPath="url(#roomClip)" transform={`translate(${PAD},${PAD})`}>
-            {gridLines}
-          </g>
+              <path d={roomPath} transform={`translate(${PAD},${PAD})`} fill={room.floorColor} />
 
-          {/* Стены */}
-          <path d={roomPath} transform={`translate(${PAD},${PAD})`}
-            fill="none" stroke={room.wallColor} strokeWidth="14" strokeLinejoin="round" />
+              <g clipPath="url(#roomClip)" transform={`translate(${PAD},${PAD})`}>
+                {gridLines}
+              </g>
 
-          {/* Ниши — подписи */}
-          {niches.map(n => {
-            let tx = 0, ty = 0;
-            if (n.wall === 'top')    { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + n.depth*SCALE/2; }
-            if (n.wall === 'bottom') { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + RH - n.depth*SCALE/2; }
-            if (n.wall === 'left')   { tx = PAD + n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
-            if (n.wall === 'right')  { tx = PAD + RW - n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
-            return (
-              <text key={n.id} x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
-                fontSize="8" fill="#6b7280" fontStyle="italic">{n.name}</text>
-            );
-          })}
+              <path d={roomPath} transform={`translate(${PAD},${PAD})`}
+                fill="none" stroke={room.wallColor} strokeWidth="14" strokeLinejoin="round" />
 
-          {/* Двери */}
-          {doors.map(d => {
-            const s = d.pos * SCALE; const sz = d.size * SCALE; const W8 = 14;
-            let x1=0,y1=0,x2=0,y2=0;
-            if (d.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
-            if (d.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
-            if (d.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
-            if (d.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
-            return <rect key={d.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
-              fill={room.floorColor} stroke="#92400e" strokeWidth="1.5" strokeDasharray="4,2" />;
-          })}
+              {niches.map(n => {
+                let tx = 0, ty = 0;
+                if (n.wall === 'top')    { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + n.depth*SCALE/2; }
+                if (n.wall === 'bottom') { tx = PAD + (n.pos + n.size/2)*SCALE; ty = PAD + RH - n.depth*SCALE/2; }
+                if (n.wall === 'left')   { tx = PAD + n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
+                if (n.wall === 'right')  { tx = PAD + RW - n.depth*SCALE/2; ty = PAD + (n.pos + n.size/2)*SCALE; }
+                return (
+                  <text key={n.id} x={tx} y={ty} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="8" fill="#6b7280" fontStyle="italic">{n.name}</text>
+                );
+              })}
 
-          {/* Окна */}
-          {windows.map(w => {
-            const s = w.pos * SCALE; const sz = w.size * SCALE; const W8 = 14;
-            let x1=0,y1=0,x2=0,y2=0;
-            if (w.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
-            if (w.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
-            if (w.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
-            if (w.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
-            return <rect key={w.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
-              fill="#bae6fd" stroke="#0369a1" strokeWidth="2" />;
-          })}
+              {doors.map(d => {
+                const s = d.pos * SCALE; const sz = d.size * SCALE; const W8 = 14;
+                let x1=0,y1=0,x2=0,y2=0;
+                if (d.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
+                if (d.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
+                if (d.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
+                if (d.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
+                return <rect key={d.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
+                  fill={room.floorColor} stroke="#92400e" strokeWidth="1.5" strokeDasharray="4,2" />;
+              })}
 
-          {/* Размерные подписи */}
-          {wallLabels.map((l,i) => (
-            <text key={i} x={l.x} y={l.y} textAnchor="middle" fontSize="11" fill="#6b7280"
-              transform={l.rotate ? `rotate(-90, ${l.x}, ${l.y})` : undefined}>{l.label}</text>
-          ))}
+              {windows.map(w => {
+                const s = w.pos * SCALE; const sz = w.size * SCALE; const W8 = 14;
+                let x1=0,y1=0,x2=0,y2=0;
+                if (w.wall==='top')    { x1=PAD+s; y1=PAD-W8/2; x2=PAD+s+sz; y2=PAD+W8/2; }
+                if (w.wall==='bottom') { x1=PAD+s; y1=PAD+RH-W8/2; x2=PAD+s+sz; y2=PAD+RH+W8/2; }
+                if (w.wall==='left')   { x1=PAD-W8/2; y1=PAD+s; x2=PAD+W8/2; y2=PAD+s+sz; }
+                if (w.wall==='right')  { x1=PAD+RW-W8/2; y1=PAD+s; x2=PAD+RW+W8/2; y2=PAD+s+sz; }
+                return <rect key={w.id} x={x1} y={y1} width={Math.abs(x2-x1)||W8} height={Math.abs(y2-y1)||W8}
+                  fill="#bae6fd" stroke="#0369a1" strokeWidth="2" />;
+              })}
 
-          {/* Мебель */}
-          <g transform={`translate(${PAD},${PAD})`}>
-            {items.map(item => {
-              const x = item.x * SCALE;
-              const y = item.y * SCALE;
-              const w = item.w * SCALE;
-              const h = item.h * SCALE;
-              const isSel = item.id === selected;
-              return (
-                <g key={item.id} style={{ cursor: 'grab' }}
-                  onMouseDown={e => onMouseDown(e, item.id)}
-                  onClick={e => { e.stopPropagation(); setSelected(item.id); }}>
-                  {item.shape === 'circle'
-                    ? <ellipse cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
-                        fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
-                    : <rect x={x} y={y} width={w} height={h} rx="2"
-                        fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
-                  }
-                  {isSel && <rect x={x-2} y={y-2} width={w+4} height={h+4} fill="none"
-                    stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4,2" rx="3" />}
-                  {w > 25 && h > 18 && (
-                    <text x={x+w/2} y={y+h/2} textAnchor="middle" dominantBaseline="middle"
-                      fontSize={Math.min(10, w/8, h/3)} fill="#374151" style={{pointerEvents:'none'}}>
-                      <tspan x={x+w/2} dy="-3">{item.name}</tspan>
-                      <tspan x={x+w/2} dy="12" fontSize={Math.min(8, w/10)}>{item.w/10}×{item.h/10}см</tspan>
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        </svg>
+              {wallLabels.map((l,i) => (
+                <text key={i} x={l.x} y={l.y} textAnchor="middle" fontSize="11" fill="#6b7280"
+                  transform={l.rotate ? `rotate(-90, ${l.x}, ${l.y})` : undefined}>{l.label}</text>
+              ))}
+
+              <g transform={`translate(${PAD},${PAD})`}>
+                {items.map(item => {
+                  const x = item.x * SCALE;
+                  const y = item.y * SCALE;
+                  const w = item.w * SCALE;
+                  const h = item.h * SCALE;
+                  const isSel = item.id === selected;
+                  return (
+                    <g key={item.id} style={{ cursor: 'grab' }}
+                      onMouseDown={e => onMouseDown(e, item.id)}
+                      onClick={e => { e.stopPropagation(); setSelected(item.id); }}>
+                      {item.shape === 'circle'
+                        ? <ellipse cx={x+w/2} cy={y+h/2} rx={w/2} ry={h/2}
+                            fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
+                        : <rect x={x} y={y} width={w} height={h} rx="2"
+                            fill={item.color} stroke={isSel ? '#2563eb' : '#9ca3af'} strokeWidth={isSel ? 2 : 1} />
+                      }
+                      {isSel && <rect x={x-2} y={y-2} width={w+4} height={h+4} fill="none"
+                        stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4,2" rx="3" />}
+                      {w > 25 && h > 18 && (
+                        <text x={x+w/2} y={y+h/2} textAnchor="middle" dominantBaseline="middle"
+                          fontSize={Math.min(10, w/8, h/3)} fill="#374151" style={{pointerEvents:'none'}}>
+                          <tspan x={x+w/2} dy="-3">{item.name}</tspan>
+                          <tspan x={x+w/2} dy="12" fontSize={Math.min(8, w/10)}>{item.w/10}×{item.h/10}см</tspan>
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
+          </div>
+        )}
       </div>
     </div>
   );

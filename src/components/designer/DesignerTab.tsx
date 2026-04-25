@@ -11,6 +11,7 @@ import DesignSuggestionsModal from './DesignSuggestionsModal';
 import type { PlacedItem as SuggestedItem } from './designTemplates';
 import { searchAppliances } from './applianceCatalog';
 import type { ApplianceModel } from './applianceCatalog';
+import { FLOOR_TEXTURES, WALL_TEXTURES, CEIL_TEXTURES } from './texturePresets';
 
 const Room3D = lazy(() => import('./Room3D'));
 
@@ -20,6 +21,9 @@ interface Room {
   wallColor: string;
   floorColor: string;
   ceilingColor: string;
+  floorTexture: string;
+  wallTexture: string;
+  ceilTexture: string;
 }
 
 interface Niche {
@@ -59,9 +63,6 @@ interface DesignerTabProps {
 const SCALE = 0.12;
 const GRID = 100;
 
-const WALL_COLORS = ['#f5f0eb','#e8e0d5','#d4c5b5','#f0e8d8','#e8f0e8','#d8e8f0','#e8d8f0','#f0d8d8','#ffffff','#f5f5f5','#2d2d2d'];
-const FLOOR_COLORS = ['#c8a97e','#a07850','#8b6340','#d4b896','#e8d5b8','#4a3728','#6b4c35','#c2b280','#f5e6c8','#9e7b5a','#2d2019'];
-const CEIL_COLORS = ['#ffffff','#f8f8f0','#fffff0','#f0f8f8','#f5f0f5','#e8e8e8'];
 
 function roomToScreen(v: number) { return v * SCALE; }
 
@@ -135,7 +136,12 @@ function ColorPickerPopup({ color, onChange }: { color: string; onChange: (c: st
 
 export default function DesignerTab({ onSendToCutting, firstMaterialId = '', project, onSaveDesign }: DesignerTabProps) {
   const saved = project?.design;
-  const [room, setRoom] = useState<Room>(saved?.room ?? { width: 4000, height: 5000, wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff' });
+  const [room, setRoom] = useState<Room>({
+    width: 4000, height: 5000,
+    wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff',
+    floorTexture: 'solid', wallTexture: 'solid', ceilTexture: 'solid',
+    ...saved?.room,
+  });
   const [niches, setNiches] = useState<Niche[]>((saved?.niches as Niche[]) ?? []);
   const [items, setItems] = useState<PlacedItem[]>((saved?.items as PlacedItem[]) ?? []);
   const [doors, setDoors] = useState<Door[]>((saved?.doors as Door[]) ?? []);
@@ -375,18 +381,41 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 </div>
               </div>
 
-              {/* Цвет стен */}
-              {([['wallColor','Стены', WALL_COLORS], ['floorColor','Пол', FLOOR_COLORS], ['ceilingColor','Потолок', CEIL_COLORS]] as const).map(([key, label, palette]) => (
-                <div key={key}>
+              {/* Текстуры/цвет поверхностей */}
+              {([
+                { texKey: 'floorTexture' as const, colorKey: 'floorColor' as const, label: 'Пол',     presets: FLOOR_TEXTURES },
+                { texKey: 'wallTexture'  as const, colorKey: 'wallColor'  as const, label: 'Стены',   presets: WALL_TEXTURES },
+                { texKey: 'ceilTexture'  as const, colorKey: 'ceilingColor' as const, label: 'Потолок', presets: CEIL_TEXTURES },
+              ]).map(({ texKey, colorKey, label, presets }) => (
+                <div key={texKey}>
                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-1.5">{label}</h4>
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
-                    {palette.map(c => (
-                      <button key={c} onClick={() => setRoom(r => ({...r, [key]: c}))}
-                        className={`w-6 h-6 rounded border-2 transition-transform ${room[key]===c ? 'border-blue-500 scale-110' : 'border-gray-200'}`}
-                        style={{background: c}} />
-                    ))}
+                    {presets.map(preset => {
+                      const bg = preset.preview.startsWith('var(') ? room[colorKey] : preset.preview;
+                      const isActive = room[texKey] === preset.id;
+                      return (
+                        <button key={preset.id}
+                          title={preset.name}
+                          onClick={() => setRoom(r => ({
+                            ...r,
+                            [texKey]: preset.id,
+                            [colorKey]: preset.id === 'solid' ? r[colorKey] : preset.baseColor,
+                          }))}
+                          className={`w-8 h-8 rounded border-2 flex-shrink-0 transition-transform ${isActive ? 'border-blue-500 scale-110 ring-1 ring-blue-300' : 'border-gray-200 hover:border-gray-400'}`}
+                          style={{ background: bg }}
+                        />
+                      );
+                    })}
                   </div>
-                  <ColorPickerPopup color={room[key]} onChange={c => setRoom(r => ({...r, [key]: c}))} />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400 truncate flex-1">
+                      {presets.find(p => p.id === room[texKey])?.name ?? 'Однотонный'}
+                    </span>
+                    <ColorPickerPopup
+                      color={room[colorKey]}
+                      onChange={c => setRoom(r => ({ ...r, [colorKey]: c, [texKey]: 'solid' }))}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

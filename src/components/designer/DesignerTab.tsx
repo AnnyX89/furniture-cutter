@@ -7,6 +7,8 @@ import type { FacadeStyle, ColorScheme } from './colorSchemes';
 import { generateFurnitureParts } from './furnitureParts';
 import type { Part, Project, RoomDesign } from '../../types';
 import { v4 as uuid } from 'uuid';
+import DesignSuggestionsModal from './DesignSuggestionsModal';
+import type { PlacedItem as SuggestedItem } from './designTemplates';
 
 const Room3D = lazy(() => import('./Room3D'));
 
@@ -148,6 +150,8 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const [measureA, setMeasureA] = useState<{x:number;y:number}|null>(null);
   const [measureB, setMeasureB] = useState<{x:number;y:number}|null>(null);
   const [hoverPos, setHoverPos] = useState<{x:number;y:number}|null>(null);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const canvasRef = useRef<SVGSVGElement>(null);
   const RW = roomToScreen(room.width);
@@ -607,6 +611,14 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             </span>
           </div>
 
+          {/* Варианты дизайна */}
+          <button
+            onClick={() => setShowSuggestions(true)}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 font-medium"
+          >
+            ✨ Варианты
+          </button>
+
           <div className="flex-1" />
 
           {/* Рулетка */}
@@ -846,6 +858,17 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
           </div>
         )}
       </div>
+
+      {showSuggestions && (
+        <DesignSuggestionsModal
+          room={room}
+          projectName={project?.name ?? 'Комната'}
+          onApply={(suggested: SuggestedItem[]) => {
+            setItems(suggested as unknown as PlacedItem[]);
+          }}
+          onClose={() => setShowSuggestions(false)}
+        />
+      )}
     </div>
   );
 }

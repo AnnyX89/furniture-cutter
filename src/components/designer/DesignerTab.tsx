@@ -304,7 +304,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                       value={room.width}
                       onChange={e => setRoom(r => ({...r, width: +e.target.value || r.width}))}
                       onBlur={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value || r.width)}))}
-                      onFocus={e => e.target.select()} />
+                      onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
                   </div>
                   <div>
                     <label className="text-xs text-gray-400">Длина</label>
@@ -312,7 +312,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                       value={room.height}
                       onChange={e => setRoom(r => ({...r, height: +e.target.value || r.height}))}
                       onBlur={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value || r.height)}))}
-                      onFocus={e => e.target.select()} />
+                      onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
                   </div>
                 </div>
               </div>
@@ -381,17 +381,17 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                       <div>
                         <label className="text-gray-400">Глубина мм</label>
                         <input type="number" step="50" className="w-full border rounded px-1 py-1 text-xs bg-white mt-0.5"
-                          value={n.depth} onChange={e => updateNiche(n.id, {depth: +e.target.value})} />
+                          value={n.depth} onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} onChange={e => updateNiche(n.id, {depth: +e.target.value})} />
                       </div>
                       <div>
                         <label className="text-gray-400">Отступ мм</label>
                         <input type="number" step="100" className="w-full border rounded px-1 py-1 text-xs bg-white mt-0.5"
-                          value={n.pos} onChange={e => updateNiche(n.id, {pos: +e.target.value})} />
+                          value={n.pos} onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} onChange={e => updateNiche(n.id, {pos: +e.target.value})} />
                       </div>
                       <div>
                         <label className="text-gray-400">Ширина мм</label>
                         <input type="number" step="100" className="w-full border rounded px-1 py-1 text-xs bg-white mt-0.5"
-                          value={n.size} onChange={e => updateNiche(n.id, {size: +e.target.value})} />
+                          value={n.size} onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} onChange={e => updateNiche(n.id, {size: +e.target.value})} />
                       </div>
                     </div>
                   </div>
@@ -436,7 +436,9 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                         <div>
                           <label className="text-gray-400">Ширина мм</label>
                           <input type="number" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
-                            value={d.size} onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, size: +e.target.value} : x))} />
+                            value={d.size}
+                            onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                            onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, size: +e.target.value} : x))} />
                         </div>
                         <div>
                           <label className="text-gray-400">От угла</label>
@@ -452,7 +454,9 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                         <div>
                           <label className="text-gray-400">Отступ мм</label>
                           <input type="number" step="100" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
-                            value={d.pos} onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, pos: +e.target.value} : x))} />
+                            value={d.pos}
+                            onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                            onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, pos: +e.target.value} : x))} />
                         </div>
                       </div>
                     </div>
@@ -476,7 +480,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   value={selectedItem.w}
                   onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: +e.target.value || i.w } : i))}
                   onBlur={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: Math.max(100, +e.target.value || i.w) } : i))}
-                  onFocus={e => e.target.select()}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
               <div>
@@ -485,7 +489,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   value={selectedItem.h}
                   onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: +e.target.value || i.h } : i))}
                   onBlur={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: Math.max(100, +e.target.value || i.h) } : i))}
-                  onFocus={e => e.target.select()}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
             </div>
@@ -538,7 +542,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
               value={room.width}
               onChange={e => setRoom(r => ({...r, width: +e.target.value || r.width}))}
               onBlur={e => setRoom(r => ({...r, width: Math.max(500, +e.target.value || r.width)}))}
-              onFocus={e => e.target.select()}
+              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
               className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
               title="Ширина комнаты (мм)" />
             <span className="text-gray-400">×</span>
@@ -546,7 +550,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
               value={room.height}
               onChange={e => setRoom(r => ({...r, height: +e.target.value || r.height}))}
               onBlur={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value || r.height)}))}
-              onFocus={e => e.target.select()}
+              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
               className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
               title="Длина комнаты (мм)" />
             <span className="text-gray-400 mr-2">мм</span>
@@ -615,7 +619,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 <div className="text-center"><div className="text-3xl mb-3 animate-pulse">🧊</div><div>Загрузка 3D...</div></div>
               </div>
             }>
-              <Room3D room={room} items={items} />
+              <Room3D room={room} items={items} doors={doors} windows={windows} niches={niches} />
             </Suspense>
           </div>
         )}

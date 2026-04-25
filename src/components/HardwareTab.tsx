@@ -124,7 +124,7 @@ function InlineColorPicker({ color, onChange }: { color: string; onChange: (c: s
 // ── кромка ────────────────────────────────────────────────────────────────────
 function EdgeBandingSection({ project, onChange }: Props) {
   const items = project.edgeBandingMaterials ?? [];
-  const matMap = new Map(project.materials.map(m => [m.id, m]));
+  const _matMap = new Map(project.materials.map(m => [m.id, m])); void _matMap;
 
   // Автосчёт метров по деталям
   const metersUsed = new Map<string, number>();

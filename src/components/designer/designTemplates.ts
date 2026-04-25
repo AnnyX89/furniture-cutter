@@ -204,23 +204,23 @@ export function generateVariants(roomName: string, room: RoomDims): DesignVarian
   const type = detectRoomType(roomName);
   _id = 0;
 
-  const variants: { id: string; name: string; desc: string; items: PlacedItem[] }[] = [];
+  const variants: { id: string; name: string; description: string; items: PlacedItem[] }[] = [];
 
   if (type === 'kitchen') {
-    variants.push({ id: 'k-linear', name: 'Линейная', desc: 'Весь гарнитур вдоль одной стены. Подходит для узких кухонь.', items: kitchenLinear(room) });
-    variants.push({ id: 'k-l', name: 'Г-образная', desc: 'Мебель вдоль двух стен. Удобно для среднего размера.', items: kitchenL(room) });
+    variants.push({ id: 'k-linear', name: 'Линейная', description: 'Весь гарнитур вдоль одной стены. Подходит для узких кухонь.', items: kitchenLinear(room) });
+    variants.push({ id: 'k-l', name: 'Г-образная', description: 'Мебель вдоль двух стен. Удобно для среднего размера.', items: kitchenL(room) });
     if (room.width >= 2800 && room.height >= 2800) {
-      variants.push({ id: 'k-u', name: 'П-образная', desc: 'Максимум рабочей поверхности. Для просторных кухонь.', items: kitchenU(room) });
+      variants.push({ id: 'k-u', name: 'П-образная', description: 'Максимум рабочей поверхности. Для просторных кухонь.', items: kitchenU(room) });
     }
     if (room.width >= 3000 && room.height >= 3500) {
-      variants.push({ id: 'k-island', name: 'С островом', desc: 'Г-образный гарнитур + центральный остров. Самый функциональный вариант.', items: kitchenIsland(room) });
+      variants.push({ id: 'k-island', name: 'С островом', description: 'Г-образный гарнитур + центральный остров. Самый функциональный вариант.', items: kitchenIsland(room) });
     }
   } else if (type === 'bedroom') {
-    variants.push({ id: 'b-classic', name: 'Классическая', desc: 'Кровать у стены, шкаф-купе, прикроватные тумбы.', items: bedroomClassic(room) });
-    variants.push({ id: 'b-small', name: 'Рабочая зона', desc: 'Односпальная кровать + рабочий стол. Для небольших комнат.', items: bedroomSmall(room) });
+    variants.push({ id: 'b-classic', name: 'Классическая', description: 'Кровать у стены, шкаф-купе, прикроватные тумбы.', items: bedroomClassic(room) });
+    variants.push({ id: 'b-small', name: 'Рабочая зона', description: 'Односпальная кровать + рабочий стол. Для небольших комнат.', items: bedroomSmall(room) });
   } else if (type === 'living') {
-    variants.push({ id: 'l-tv', name: 'Классическая', desc: 'Диван напротив ТВ, журнальный стол, кресла.', items: livingTV(room) });
-    variants.push({ id: 'l-corner', name: 'Угловой диван', desc: 'Угловой диван + ТВ-зона. Максимум места для отдыха.', items: livingCornerSofa(room) });
+    variants.push({ id: 'l-tv', name: 'Классическая', description: 'Диван напротив ТВ, журнальный стол, кресла.', items: livingTV(room) });
+    variants.push({ id: 'l-corner', name: 'Угловой диван', description: 'Угловой диван + ТВ-зона. Максимум места для отдыха.', items: livingCornerSofa(room) });
   }
 
   return variants.map(v => ({

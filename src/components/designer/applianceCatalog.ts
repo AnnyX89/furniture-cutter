@@ -62,6 +62,36 @@ export const APPLIANCE_CATALOG: ApplianceModel[] = [
   // ── Холодильники встраиваемые ─────────────────────────────────────────────
   { id: 'bosch-kil22', brand: 'Bosch', model: 'KIL22NSE0 (встраиваемый)', category: 'Встраиваемый холодильник', w: 560, h: 550, color: '#f8fafc', icon: '❄️' },
   { id: 'electrolux-ern', brand: 'Electrolux', model: 'ERN1900AOW (встраиваемый)', category: 'Встраиваемый холодильник', w: 560, h: 550, color: '#f8fafc', icon: '❄️' },
+
+  // ── Leran ─────────────────────────────────────────────────────────────────
+  { id: 'leran-rfb190', brand: 'Leran', model: 'RFB 190 W (однокамерный)', category: 'Холодильник', w: 595, h: 570, color: '#f5f5f5', icon: '❄️' },
+  { id: 'leran-rfb200', brand: 'Leran', model: 'RFB 200 IX', category: 'Холодильник', w: 595, h: 620, color: '#e8eaed', icon: '❄️' },
+  { id: 'leran-cbf420', brand: 'Leran', model: 'CBF 420 W (двухкамерный)', category: 'Холодильник', w: 595, h: 630, color: '#f5f5f5', icon: '❄️' },
+  { id: 'leran-fdw55', brand: 'Leran', model: 'FDW 55-096 W (узкая)', category: 'Посудомоечная', w: 450, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'leran-fdw64', brand: 'Leran', model: 'FDW 64 D6 W', category: 'Посудомоечная', w: 598, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'leran-eob451', brand: 'Leran', model: 'EOB 451 BL (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#1e293b', icon: '🍕' },
+  { id: 'leran-hi32', brand: 'Leran', model: 'HI 32 B (варочная)', category: 'Плита', w: 580, h: 510, color: '#1e293b', icon: '🔥' },
+  { id: 'leran-hi64', brand: 'Leran', model: 'HI 641 B (варочная)', category: 'Плита', w: 595, h: 510, color: '#1e293b', icon: '🔥' },
+  { id: 'leran-wms60', brand: 'Leran', model: 'WMS 60T12 W', category: 'Стиральная машина', w: 600, h: 550, color: '#f5f5f5', icon: '🧺' },
+  { id: 'leran-wms47', brand: 'Leran', model: 'WMS 47T102 W (узкая)', category: 'Стиральная машина', w: 470, h: 550, color: '#f5f5f5', icon: '🧺' },
+
+  // ── Weissgauff ───────────────────────────────────────────────────────────
+  { id: 'wg-wrk2000', brand: 'Weissgauff', model: 'WRK 2000 Full NoFrost', category: 'Холодильник', w: 595, h: 640, color: '#f0f4f8', icon: '❄️' },
+  { id: 'wg-wcd337', brand: 'Weissgauff', model: 'WCD 337 NFW', category: 'Холодильник', w: 595, h: 650, color: '#f5f5f5', icon: '❄️' },
+  { id: 'wg-wrs590', brand: 'Weissgauff', model: 'WRS 590 BeNFX (Side-by-Side)', category: 'Холодильник', w: 910, h: 700, color: '#e8eaed', icon: '❄️' },
+  { id: 'wg-dw4026', brand: 'Weissgauff', model: 'DW 4026 D', category: 'Посудомоечная', w: 598, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'wg-bdw4533', brand: 'Weissgauff', model: 'BDW 4533 D (узкая)', category: 'Посудомоечная', w: 450, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'wg-ov692', brand: 'Weissgauff', model: 'OV W 692 (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#374151', icon: '🍕' },
+  { id: 'wg-eov29', brand: 'Weissgauff', model: 'EOV 29 PD (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#374151', icon: '🍕' },
+  { id: 'wg-hi641', brand: 'Weissgauff', model: 'HI 641 B (варочная)', category: 'Плита', w: 575, h: 505, color: '#1e293b', icon: '🔥' },
+  { id: 'wg-wm4148', brand: 'Weissgauff', model: 'WM 4148 DC', category: 'Стиральная машина', w: 600, h: 550, color: '#f0f4f8', icon: '🧺' },
+  { id: 'wg-wm4758', brand: 'Weissgauff', model: 'WM 4758 D (узкая)', category: 'Стиральная машина', w: 470, h: 550, color: '#f0f4f8', icon: '🧺' },
+
+  // ── Мойки кухонные ───────────────────────────────────────────────────────
+  { id: 'wulian-680', brand: 'Wulian', model: '680×460 Белая с краном (накладная)', category: 'Мойка', w: 680, h: 460, color: '#f8f8f8', icon: '🚰' },
+  { id: 'sink-franke-610', brand: 'Franke', model: 'MRX 610-52 (врезная)', category: 'Мойка', w: 610, h: 500, color: '#e2e8f0', icon: '🚰' },
+  { id: 'sink-blanco-514', brand: 'Blanco', model: 'Classik 6S (врезная)', category: 'Мойка', w: 780, h: 500, color: '#e2e8f0', icon: '🚰' },
+  { id: 'sink-omoikiri-480', brand: 'Omoikiri', model: 'Bosen 48-U (накладная)', category: 'Мойка', w: 480, h: 432, color: '#e2e8f0', icon: '🚰' },
 ];
 
 export function searchAppliances(query: string): ApplianceModel[] {

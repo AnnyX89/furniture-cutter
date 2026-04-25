@@ -87,6 +87,20 @@ export const APPLIANCE_CATALOG: ApplianceModel[] = [
   { id: 'wg-wm4148', brand: 'Weissgauff', model: 'WM 4148 DC', category: 'Стиральная машина', w: 600, h: 550, color: '#f0f4f8', icon: '🧺' },
   { id: 'wg-wm4758', brand: 'Weissgauff', model: 'WM 4758 D (узкая)', category: 'Стиральная машина', w: 470, h: 550, color: '#f0f4f8', icon: '🧺' },
 
+  // ── Haier ─────────────────────────────────────────────────────────────────
+  { id: 'haier-a2f637', brand: 'Haier', model: 'A2F637CGG (двухкамерный)', category: 'Холодильник', w: 595, h: 650, color: '#e8eaed', icon: '❄️' },
+  { id: 'haier-a2f737', brand: 'Haier', model: 'A2F737CGG (двухкамерный)', category: 'Холодильник', w: 595, h: 650, color: '#e8eaed', icon: '❄️' },
+  { id: 'haier-hrf628', brand: 'Haier', model: 'HRF-628IG6 (French Door)', category: 'Холодильник', w: 910, h: 730, color: '#e8eaed', icon: '❄️' },
+  { id: 'haier-hrf450', brand: 'Haier', model: 'HRF-450DS6 (Side-by-Side)', category: 'Холодильник', w: 908, h: 695, color: '#e8eaed', icon: '❄️' },
+  { id: 'haier-hdw50', brand: 'Haier', model: 'HDW50-288 (узкая)', category: 'Посудомоечная', w: 450, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'haier-hdw15', brand: 'Haier', model: 'HDW15-288 W', category: 'Посудомоечная', w: 598, h: 600, color: '#e2e8f0', icon: '🍽️' },
+  { id: 'haier-hhi640', brand: 'Haier', model: 'HHI 640 B (варочная)', category: 'Плита', w: 590, h: 510, color: '#1e293b', icon: '🔥' },
+  { id: 'haier-hob60', brand: 'Haier', model: 'HOB 60 (свободностоящая)', category: 'Плита', w: 600, h: 600, color: '#374151', icon: '🔥' },
+  { id: 'haier-hov60', brand: 'Haier', model: 'HOV 60 S3X (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#374151', icon: '🍕' },
+  { id: 'haier-hw70', brand: 'Haier', model: 'HW70-BP14959', category: 'Стиральная машина', w: 600, h: 550, color: '#f0f4f8', icon: '🧺' },
+  { id: 'haier-hw80', brand: 'Haier', model: 'HW80-BP14979S', category: 'Стиральная машина', w: 600, h: 590, color: '#f0f4f8', icon: '🧺' },
+  { id: 'haier-hmc255', brand: 'Haier', model: 'HMC255BSSX (настольная)', category: 'Микроволновка', w: 475, h: 361, color: '#374151', icon: '📡' },
+
   // ── Мойки кухонные ───────────────────────────────────────────────────────
   { id: 'wulian-680', brand: 'Wulian', model: '680×460 Белая с краном (накладная)', category: 'Мойка', w: 680, h: 460, color: '#f8f8f8', icon: '🚰' },
   { id: 'sink-franke-610', brand: 'Franke', model: 'MRX 610-52 (врезная)', category: 'Мойка', w: 610, h: 500, color: '#e2e8f0', icon: '🚰' },

@@ -30,7 +30,7 @@ interface Niche {
 }
 
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
-interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
+interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 
 interface PlacedItem {
   id: string;
@@ -502,6 +502,22 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                             onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                             onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, pos: +e.target.value} : x))} />
                         </div>
+                        {label === 'Окна' && (<>
+                          <div>
+                            <label className="text-gray-400">Высота мм</label>
+                            <input type="number" step="100" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
+                              value={(d as Window).winHeight ?? 1000}
+                              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                              onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, winHeight: +e.target.value} : x))} />
+                          </div>
+                          <div>
+                            <label className="text-gray-400">Подоконник мм</label>
+                            <input type="number" step="100" className="w-full border rounded px-1 py-0.5 text-xs mt-0.5"
+                              value={(d as Window).winSill ?? 900}
+                              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                              onChange={e => set((p: any[]) => p.map((x:any) => x.id===d.id ? {...x, winSill: +e.target.value} : x))} />
+                          </div>
+                        </>)}
                       </div>
                     </div>
                   ))}

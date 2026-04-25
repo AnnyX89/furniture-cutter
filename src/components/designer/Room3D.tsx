@@ -26,7 +26,7 @@ interface RoomData {
 }
 
 interface Door3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
-interface Window3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
+interface Window3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 interface Niche3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; depth: number; }
 
 interface Room3DProps {
@@ -144,20 +144,22 @@ function NicheMesh({ niche, room, H }: { niche: Niche3D; room: RoomData; H: numb
   const sz = niche.size * MM;
   const dp = niche.depth * MM;
   const p = niche.pos * MM;
-  const nicheH = H * 0.85;
-  const cy = nicheH / 2;
+  const cy = H / 2;
 
   let pos: [number,number,number] = [0,0,0];
-  let rot: [number,number,number] = [0,0,0];
-  if (niche.wall === 'top')    { pos = [p + sz/2, cy, dp/2];     rot = [0, 0, 0]; }
-  if (niche.wall === 'bottom') { pos = [p + sz/2, cy, D - dp/2]; rot = [0, 0, 0]; }
-  if (niche.wall === 'left')   { pos = [dp/2,     cy, p + sz/2]; rot = [0, Math.PI/2, 0]; }
-  if (niche.wall === 'right')  { pos = [W - dp/2, cy, p + sz/2]; rot = [0, Math.PI/2, 0]; }
+  if (niche.wall === 'top')    { pos = [p + sz/2, cy, dp/2]; }
+  if (niche.wall === 'bottom') { pos = [p + sz/2, cy, D - dp/2]; }
+  if (niche.wall === 'left')   { pos = [dp/2,     cy, p + sz/2]; }
+  if (niche.wall === 'right')  { pos = [W - dp/2, cy, p + sz/2]; }
+
+  const isHoriz = niche.wall === 'top' || niche.wall === 'bottom';
+  const bw = isHoriz ? sz : dp;
+  const bd = isHoriz ? dp : sz;
 
   return (
-    <mesh position={pos} rotation={rot}>
-      <boxGeometry args={[sz, nicheH, dp]} />
-      <meshStandardMaterial color="#d1d5db" transparent opacity={0.35} side={THREE.DoubleSide} roughness={0.9} />
+    <mesh position={pos}>
+      <boxGeometry args={[bw, H, bd]} />
+      <meshStandardMaterial color={room.wallColor} roughness={0.9} />
     </mesh>
   );
 }
@@ -193,13 +195,9 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
       // left/right walls: local x = wallW - worldZ - sz (mirrored, because rotation π/2 around Y flips Z→-X)
       const holeX = isHoriz ? rawPos : (wallW - rawPos - sz);
 
-      result[op.wall].push({
-        x: holeX,
-        y: op.isWindow ? WIN_SILL : 0,
-        w: sz,
-        h: op.isWindow ? WIN_HEIGHT : DOOR_HEIGHT,
-        isWindow: op.isWindow,
-      });
+      const winH = op.isWindow ? ((op as Window3D).winHeight ?? 1000) * MM : DOOR_HEIGHT;
+      const winY = op.isWindow ? ((op as Window3D).winSill   ??  900) * MM : 0;
+      result[op.wall].push({ x: holeX, y: winY, w: sz, h: winH, isWindow: op.isWindow });
     }
     return result;
   }, [doors, windows, room.width, room.height, W, D]); // eslint-disable-line react-hooks/exhaustive-deps

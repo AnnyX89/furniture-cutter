@@ -50,8 +50,6 @@ const _pt = new THREE.Vector3();
 const _nrm = new THREE.Vector3();
 
 const DOOR_HEIGHT = 2100 * MM;
-const WIN_SILL    = 900  * MM;
-const WIN_HEIGHT  = 1000 * MM;
 
 interface SmartWallProps {
   position: [number, number, number];
@@ -175,7 +173,7 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
       top: [], bottom: [], left: [], right: [],
     };
 
-    type Opening = { wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; isWindow: boolean };
+    type Opening = { wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; isWindow: boolean; winHeight?: number; winSill?: number };
     const all: Opening[] = [
       ...doors.map(d => ({ ...d, isWindow: false })),
       ...windows.map(w => ({ ...w, isWindow: true })),
@@ -195,8 +193,8 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
       // left/right walls: local x = wallW - worldZ - sz (mirrored, because rotation π/2 around Y flips Z→-X)
       const holeX = isHoriz ? rawPos : (wallW - rawPos - sz);
 
-      const winH = op.isWindow ? ((op as Window3D).winHeight ?? 1000) * MM : DOOR_HEIGHT;
-      const winY = op.isWindow ? ((op as Window3D).winSill   ??  900) * MM : 0;
+      const winH = op.isWindow ? (op.winHeight ?? 1000) * MM : DOOR_HEIGHT;
+      const winY = op.isWindow ? (op.winSill   ??  900) * MM : 0;
       result[op.wall].push({ x: holeX, y: winY, w: sz, h: winH, isWindow: op.isWindow });
     }
     return result;

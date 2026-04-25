@@ -234,6 +234,12 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
     let ny = Math.round((my - dragging.oy) / snap) * snap;
     nx = Math.max(0, Math.min(room.width - item.w, nx));
     ny = Math.max(0, Math.min(room.height - item.h, ny));
+    // Прилипание к стенам — если ближе 150мм, встать вплотную
+    const WS = 150;
+    if (nx <= WS) nx = 0;
+    if (ny <= WS) ny = 0;
+    if (nx >= room.width  - item.w - WS) nx = room.width  - item.w;
+    if (ny >= room.height - item.h - WS) ny = room.height - item.h;
     setItems(prev => prev.map(i => i.id === dragging.id ? { ...i, x: nx, y: ny } : i));
   }, [dragging, items, room, measureMode]);
 

@@ -140,7 +140,8 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const [windows, setWindows] = useState<Window[]>((saved?.windows as Window[]) ?? []);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('kitchen');
-  const [sideTab, setSideTab] = useState<'room'|'niches'|'furniture'|'openings'>('furniture');
+  const [sideTab, setSideTab] = useState<'room'|'niches'|'furniture'|'openings'|'custom'>('furniture');
+  const [customForm, setCustomForm] = useState({ name: '', w: 600, h: 600, color: '#f1f5f9' });
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
   const [activeScheme, setActiveScheme] = useState<string | null>(null);
@@ -292,7 +293,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
       {/* ── Sidebar ─────────────────────────────── */}
       <div className="w-72 flex-shrink-0 bg-white border-r flex flex-col">
         <div className="flex border-b text-xs overflow-x-auto">
-          {([['furniture','🛋️'],['room','🏠'],['niches','🔲'],['openings','🚪']] as const).map(([id,icon]) => (
+          {([['furniture','🛋️'],['room','🏠'],['niches','🔲'],['openings','🚪'],['custom','➕']] as const).map(([id,icon]) => (
             <button key={id} onClick={() => setSideTab(id)}
               className={`flex-1 py-2 font-medium transition-colors ${sideTab===id ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
               {icon}
@@ -524,6 +525,73 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   {list.length === 0 && <p className="text-gray-400 text-xs text-center py-2">Нет {label.toLowerCase()}</p>}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Своя мебель/техника */}
+          {sideTab === 'custom' && (
+            <div className="p-3 space-y-3">
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-1">Своя мебель / техника</h4>
+                <p className="text-xs text-gray-400 leading-tight">Укажи название и размеры — предмет появится в плане.</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">Название</label>
+                <input
+                  className="w-full border rounded px-2 py-1.5 text-xs mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  placeholder="Холодильник, Плита, Диван..."
+                  value={customForm.name}
+                  onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500">Ширина мм</label>
+                  <input type="number" step="10" min="100" max="5000"
+                    className="w-full border rounded px-2 py-1.5 text-xs mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    value={customForm.w}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                    onChange={e => setCustomForm(f => ({ ...f, w: +e.target.value || f.w }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Глубина мм</label>
+                  <input type="number" step="10" min="100" max="5000"
+                    className="w-full border rounded px-2 py-1.5 text-xs mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    value={customForm.h}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                    onChange={e => setCustomForm(f => ({ ...f, h: +e.target.value || f.h }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Цвет</label>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {['#f1f5f9','#e2e8f0','#fef3c7','#dbeafe','#dcfce7','#fce7f3','#374151','#c8a97e','#bae6fd','#fde68a'].map(c => (
+                    <button key={c} onClick={() => setCustomForm(f => ({ ...f, color: c }))}
+                      className={`w-5 h-5 rounded border-2 ${customForm.color===c ? 'border-blue-500 scale-110' : 'border-gray-200'}`}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+                <ColorPickerPopup color={customForm.color} onChange={c => setCustomForm(f => ({ ...f, color: c }))} />
+              </div>
+              <button
+                disabled={!customForm.name.trim()}
+                onClick={() => {
+                  if (!customForm.name.trim()) return;
+                  const it: PlacedItem = {
+                    id: uuid(), templateId: 'custom', name: customForm.name.trim(),
+                    x: Math.round((room.width / 2 - customForm.w / 2) / GRID) * GRID,
+                    y: Math.round((room.height / 2 - customForm.h / 2) / GRID) * GRID,
+                    w: customForm.w, h: customForm.h, rotation: 0,
+                    color: customForm.color, facadeStyle: 'matte', icon: '📦',
+                  };
+                  setItems(prev => [...prev, it]);
+                  setSelected(it.id);
+                  setSideTab('furniture');
+                }}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                ➕ Добавить в план
+              </button>
             </div>
           )}
         </div>

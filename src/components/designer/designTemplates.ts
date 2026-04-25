@@ -109,6 +109,31 @@ function kitchenIsland(r: RoomDims): PlacedItem[] {
   return items;
 }
 
+// Двухрядная/галерейная — шкафы на двух противоположных стенах
+function kitchenGallery(r: RoomDims): PlacedItem[] {
+  const d = 600;
+  const items: PlacedItem[] = [];
+  // Верхняя стена
+  let x = 0;
+  items.push(item('Нижний 60', 'k-base-60', x, 0, 600, d, '#fef3c7', '▭')); x += 600;
+  items.push(item('Мойка', 'k-sink', x, 0, 600, d, '#bae6fd', '🚰')); x += 600;
+  items.push(item('Нижний 60', 'k-base-60', x, 0, 600, d, '#fef3c7', '▭')); x += 600;
+  if (x + 600 <= r.width) { items.push(item('Нижний 60', 'k-base-60', x, 0, 600, d, '#fef3c7', '▭')); }
+  // Нижняя стена
+  items.push(item('Плита', 'k-stove', 0, r.height - d, d, 600, '#f1f5f9', '🔥'));
+  items.push(item('Нижний 60', 'k-base-60', 600, r.height - d, 600, d, '#fef3c7', '▭'));
+  items.push(item('Холодильник', 'k-fridge', r.width - 650, r.height - 650, 600, 650, '#f8fafc', '❄️'));
+  return items;
+}
+
+// Угловая с пеналом
+function kitchenCornerPantry(r: RoomDims): PlacedItem[] {
+  const items = kitchenL(r);
+  const panW = 600; const panH = 600;
+  items.push(item('Пенал', 'k-pantry', r.width - panW, 0, panW, panH, '#fde68a', '🗄️'));
+  return items;
+}
+
 // ── спальни ──────────────────────────────────────────────────────────────────
 function bedroomClassic(r: RoomDims): PlacedItem[] {
   const bw = Math.min(1800, r.width - 400);
@@ -209,6 +234,8 @@ export function generateVariants(roomName: string, room: RoomDims): DesignVarian
   if (type === 'kitchen') {
     variants.push({ id: 'k-linear', name: 'Линейная', description: 'Весь гарнитур вдоль одной стены. Подходит для узких кухонь.', items: kitchenLinear(room) });
     variants.push({ id: 'k-l', name: 'Г-образная', description: 'Мебель вдоль двух стен. Удобно для среднего размера.', items: kitchenL(room) });
+    variants.push({ id: 'k-gallery', name: 'Двухрядная', description: 'Шкафы на двух противоположных стенах. Больше рабочего пространства.', items: kitchenGallery(room) });
+    variants.push({ id: 'k-pantry', name: 'Г + пенал', description: 'Г-образная кухня с высоким пеналом для хранения.', items: kitchenCornerPantry(room) });
     if (room.width >= 2800 && room.height >= 2800) {
       variants.push({ id: 'k-u', name: 'П-образная', description: 'Максимум рабочей поверхности. Для просторных кухонь.', items: kitchenU(room) });
     }

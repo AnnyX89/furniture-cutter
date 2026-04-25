@@ -9,6 +9,8 @@ import type { Part, Project, RoomDesign } from '../../types';
 import { v4 as uuid } from 'uuid';
 import DesignSuggestionsModal from './DesignSuggestionsModal';
 import type { PlacedItem as SuggestedItem } from './designTemplates';
+import { searchAppliances } from './applianceCatalog';
+import type { ApplianceModel } from './applianceCatalog';
 
 const Room3D = lazy(() => import('./Room3D'));
 
@@ -142,6 +144,8 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const [activeCategory, setActiveCategory] = useState('kitchen');
   const [sideTab, setSideTab] = useState<'room'|'niches'|'furniture'|'openings'|'custom'>('furniture');
   const [customForm, setCustomForm] = useState({ name: '', w: 600, h: 600, color: '#f1f5f9' });
+  const [applianceQuery, setApplianceQuery] = useState('');
+  const applianceResults = searchAppliances(applianceQuery).slice(0, 12);
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
   const [activeScheme, setActiveScheme] = useState<string | null>(null);
@@ -531,15 +535,51 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
           {/* Своя мебель/техника */}
           {sideTab === 'custom' && (
             <div className="p-3 space-y-3">
+
+              {/* Поиск по модели */}
               <div>
-                <h4 className="text-xs font-semibold text-gray-700 mb-1">Своя мебель / техника</h4>
-                <p className="text-xs text-gray-400 leading-tight">Укажи название и размеры — предмет появится в плане.</p>
+                <h4 className="text-xs font-semibold text-gray-700 mb-1">🔍 Поиск техники по модели</h4>
+                <input
+                  className="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  placeholder="Bosch KGN56, Samsung RF60, LG..."
+                  value={applianceQuery}
+                  onChange={e => setApplianceQuery(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1 max-h-52 overflow-y-auto">
+                {applianceResults.map((a: ApplianceModel) => (
+                  <button key={a.id}
+                    onClick={() => {
+                      const it: PlacedItem = {
+                        id: uuid(), templateId: 'custom',
+                        name: `${a.brand} ${a.model}`,
+                        x: Math.round((room.width / 2 - a.w / 2) / GRID) * GRID,
+                        y: Math.round((room.height / 2 - a.h / 2) / GRID) * GRID,
+                        w: a.w, h: a.h, rotation: 0,
+                        color: a.color, facadeStyle: 'matte', icon: a.icon,
+                      };
+                      setItems(prev => [...prev, it]);
+                      setSelected(it.id);
+                    }}
+                    className="w-full text-left p-2 rounded-lg border hover:border-blue-400 hover:bg-blue-50 text-xs transition-colors"
+                  >
+                    <div className="font-medium text-gray-800 leading-tight">{a.icon} {a.brand} {a.model}</div>
+                    <div className="text-gray-400 mt-0.5">{a.category} · {a.w}×{a.h} мм</div>
+                  </button>
+                ))}
+                {applianceResults.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-3">Не найдено. Добавь вручную ↓</p>
+                )}
+              </div>
+
+              {/* Разделитель */}
+              <div className="border-t pt-2">
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">✏️ Добавить вручную</h4>
               </div>
               <div>
-                <label className="text-xs text-gray-500">Название</label>
                 <input
-                  className="w-full border rounded px-2 py-1.5 text-xs mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  placeholder="Холодильник, Плита, Диван..."
+                  className="w-full border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  placeholder="Название (Диван, Шкаф...)"
                   value={customForm.name}
                   onChange={e => setCustomForm(f => ({ ...f, name: e.target.value }))}
                 />
@@ -562,15 +602,12 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                     onChange={e => setCustomForm(f => ({ ...f, h: +e.target.value || f.h }))} />
                 </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Цвет</label>
-                <div className="flex flex-wrap gap-1.5 mb-1.5">
-                  {['#f1f5f9','#e2e8f0','#fef3c7','#dbeafe','#dcfce7','#fce7f3','#374151','#c8a97e','#bae6fd','#fde68a'].map(c => (
-                    <button key={c} onClick={() => setCustomForm(f => ({ ...f, color: c }))}
-                      className={`w-5 h-5 rounded border-2 ${customForm.color===c ? 'border-blue-500 scale-110' : 'border-gray-200'}`}
-                      style={{ background: c }} />
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1.5">
+                {['#f1f5f9','#374151','#fef3c7','#dbeafe','#dcfce7','#fce7f3','#c8a97e','#1e293b','#fde68a','#bae6fd'].map(c => (
+                  <button key={c} onClick={() => setCustomForm(f => ({ ...f, color: c }))}
+                    className={`w-5 h-5 rounded border-2 ${customForm.color===c ? 'border-blue-500 scale-110' : 'border-gray-200'}`}
+                    style={{ background: c }} />
+                ))}
                 <ColorPickerPopup color={customForm.color} onChange={c => setCustomForm(f => ({ ...f, color: c }))} />
               </div>
               <button
@@ -586,7 +623,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   };
                   setItems(prev => [...prev, it]);
                   setSelected(it.id);
-                  setSideTab('furniture');
+                  setCustomForm(f => ({ ...f, name: '' }));
                 }}
                 className="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >

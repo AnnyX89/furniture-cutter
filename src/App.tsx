@@ -12,6 +12,7 @@ import ReportsTab from './components/ReportsTab';
 import HelpPage from './components/HelpPage';
 import DesignerTab from './components/designer/DesignerTab';
 import WhereToBuyTab from './components/WhereToBuyTab';
+import HardwareTab from './components/HardwareTab';
 
 function newProject(name: string): Project {
   return {
@@ -31,6 +32,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'cutting', label: '📐 Раскройка' },
   { id: 'reports', label: '📊 Отчёты' },
   { id: 'designer', label: '🏠 Дизайн комнаты' },
+  { id: 'hardware', label: '🔩 Фурнитура и кант' },
   { id: 'buy', label: '🛒 Где купить' },
   { id: 'help', label: '❓ Справка' },
 ];
@@ -229,6 +231,7 @@ export default function App() {
             }}
           />
         )}
+        {tab === 'hardware' && <HardwareTab project={current} onChange={handleProjectChange} />}
         {tab === 'buy' && <WhereToBuyTab />}
         {tab === 'help' && <HelpPage />}
       </main>

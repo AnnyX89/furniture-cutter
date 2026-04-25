@@ -27,6 +27,25 @@ export interface Part {
   edgeBanding: EdgeBanding;
 }
 
+export interface EdgeBandingMaterial {
+  id: string;
+  name: string;
+  color: string;
+  width: number;        // мм: 19, 22, 44...
+  pricePerMeter: number;
+  materialId?: string;  // привязка к плите для цветового соответствия
+}
+
+export interface HardwareItem {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  pricePerUnit: number;
+  unit: string;         // шт / пара / компл. / м
+  notes: string;
+}
+
 export interface RoomDesign {
   room: { width: number; height: number; wallColor: string; floorColor: string; ceilingColor: string };
   items: unknown[];
@@ -41,6 +60,8 @@ export interface Project {
   kerf: number;
   materials: Material[];
   parts: Part[];
+  edgeBandingMaterials?: EdgeBandingMaterial[];
+  hardware?: HardwareItem[];
   design?: RoomDesign;
   createdAt: string;
   updatedAt: string;
@@ -75,4 +96,4 @@ export interface CuttingResult {
   unplacedParts: { part: Part; count: number }[];
 }
 
-export type TabId = 'materials' | 'parts' | 'cutting' | 'reports' | 'designer' | 'buy' | 'help';
+export type TabId = 'materials' | 'parts' | 'cutting' | 'reports' | 'designer' | 'hardware' | 'buy' | 'help';

@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { FURNITURE, CATEGORIES } from './furnitureLibrary';
 import type { FurnitureTemplate } from './furnitureLibrary';
 import { COLOR_SCHEMES, FACADE_OPTIONS } from './colorSchemes';
@@ -78,6 +79,54 @@ function buildRoomPath(room: Room, niches: Niche[]): string {
   for (const n of [...left].reverse()) { pts.push([0,(n.pos+n.size)*s],[n.depth*s,(n.pos+n.size)*s],[n.depth*s,n.pos*s],[0,n.pos*s]); }
 
   return 'M ' + pts.map(([x,y]) => `${x},${y}`).join(' L ') + ' Z';
+}
+
+function ColorPickerPopup({ color, onChange }: { color: string; onChange: (c: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [hex, setHex] = useState(color);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setHex(color); }, [color]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleHex = (v: string) => {
+    setHex(v);
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) onChange(v);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-200 hover:border-blue-400 transition-colors text-xs font-medium text-gray-600"
+      >
+        <span className="w-5 h-5 rounded border border-gray-300 flex-shrink-0 block" style={{ background: color }} />
+        🎨 Свой цвет
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border p-3 w-52">
+          <HexColorPicker color={color} onChange={c => { setHex(c); onChange(c); }} />
+          <div className="flex items-center gap-2 mt-2">
+            <span className="w-5 h-5 rounded border border-gray-200 flex-shrink-0" style={{ background: color }} />
+            <input
+              className="flex-1 border rounded px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+              value={hex}
+              onChange={e => handleHex(e.target.value)}
+              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+              placeholder="#rrggbb"
+              maxLength={7}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DesignerTab({ onSendToCutting, firstMaterialId = '', project, onSaveDesign }: DesignerTabProps) {
@@ -328,16 +377,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                         style={{background: c}} />
                     ))}
                   </div>
-                  {/* Ручной ввод цвета */}
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={room[key]}
-                      onChange={e => setRoom(r => ({...r, [key]: e.target.value}))}
-                      className="w-7 h-7 rounded cursor-pointer border border-gray-200 p-0.5" />
-                    <input className="border rounded px-2 py-1 text-xs font-mono w-24"
-                      value={room[key]}
-                      onChange={e => { if (/^#[0-9a-fA-F]{0,6}$/.test(e.target.value)) setRoom(r => ({...r, [key]: e.target.value})); }} />
-                    <span className="text-xs text-gray-400">свой цвет</span>
-                  </div>
+                  <ColorPickerPopup color={room[key]} onChange={c => setRoom(r => ({...r, [key]: c}))} />
                 </div>
               ))}
             </div>
@@ -507,9 +547,9 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                     className={`w-5 h-5 rounded border-2 ${selectedItem.color===c ? 'border-blue-500 scale-110' : 'border-transparent'}`}
                     style={{background:c}} />
                 ))}
-                <input type="color" value={selectedItem.color}
-                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i,color:e.target.value} : i))}
-                  className="w-5 h-5 rounded cursor-pointer border border-gray-200 p-0" title="Свой цвет" />
+                <ColorPickerPopup
+                  color={selectedItem.color}
+                  onChange={c => setItems(p => p.map(i => i.id===selected ? {...i,color:c} : i))} />
               </div>
             </div>
             {/* Фасад 3D */}

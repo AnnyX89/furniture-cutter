@@ -50,7 +50,6 @@ function kitchenLinear(r: RoomDims): PlacedItem[] {
     items.push(item(seg.name, seg.id, x, 0, seg.w, d, seg.color, seg.icon));
     x += seg.w;
   }
-  items.push(item('Холодильник', 'k-fridge', r.width - 650, 0, 600, 650, '#f8fafc', '❄️'));
   return items;
 }
 
@@ -72,7 +71,6 @@ function kitchenL(r: RoomDims): PlacedItem[] {
   items.push(item('Плита', 'k-stove', 0, y, d, 600, '#f1f5f9', '🔥')); y += 600;
   if (y + 600 <= leftLen) { items.push(item('Нижний 60', 'k-base-60', 0, y, d, 600, '#fef3c7', '▭')); y += 600; }
 
-  items.push(item('Холодильник', 'k-fridge', r.width - 650, 0, 600, 650, '#f8fafc', '❄️'));
   return items;
 }
 
@@ -95,7 +93,6 @@ function kitchenU(r: RoomDims): PlacedItem[] {
   items.push(item('Плита', 'k-stove', r.width - d, y, d, 600, '#f1f5f9', '🔥')); y += 600;
   while (y + 600 <= d + rightLen) { items.push(item('Нижний 60', 'k-base-60', r.width - d, y, d, 600, '#fef3c7', '▭')); y += 600; }
 
-  items.push(item('Холодильник', 'k-fridge', r.width - 650, r.height - 650, 600, 650, '#f8fafc', '❄️'));
   return items;
 }
 
@@ -122,7 +119,6 @@ function kitchenGallery(r: RoomDims): PlacedItem[] {
   // Нижняя стена
   items.push(item('Плита', 'k-stove', 0, r.height - d, d, 600, '#f1f5f9', '🔥'));
   items.push(item('Нижний 60', 'k-base-60', 600, r.height - d, 600, d, '#fef3c7', '▭'));
-  items.push(item('Холодильник', 'k-fridge', r.width - 650, r.height - 650, 600, 650, '#f8fafc', '❄️'));
   return items;
 }
 

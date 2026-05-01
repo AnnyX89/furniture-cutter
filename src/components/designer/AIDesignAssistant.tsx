@@ -16,9 +16,11 @@ interface Room {
   wallTexture: string; floorTexture: string; ceilTexture: string;
 }
 
+interface AnyItem { name: string; w: number; h: number; }
+
 interface Props {
   room: Room;
-  items: PlacedItem[];
+  items: AnyItem[];
   projectName: string;
   onApplyItems: (items: PlacedItem[]) => void;
   onSetColors: (c: { wallColor?: string; floorColor?: string; ceilingColor?: string }) => void;

@@ -186,8 +186,21 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
 
   const canvasRef = useRef<SVGSVGElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-save 1s after last change
+  useEffect(() => {
+    if (!onSaveDesign) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      onSaveDesign({ room, items, doors, windows, niches });
+      setSavedAt(new Date());
+    }, 1000);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [room, items, doors, windows, niches]); // eslint-disable-line react-hooks/exhaustive-deps
   const RW = roomToScreen(room.width);
   const RH = roomToScreen(room.height);
   const PAD = 60;
@@ -856,9 +869,11 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
 
           {/* Сохранить дизайн */}
           {onSaveDesign && (
-            <button onClick={() => onSaveDesign({ room, items, doors, windows, niches })}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">
-              💾 Сохранить
+            <button
+              onClick={() => { onSaveDesign({ room, items, doors, windows, niches }); setSavedAt(new Date()); }}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium"
+              title={savedAt ? `Сохранено в ${savedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : 'Сохранить дизайн'}>
+              {savedAt ? '✅ Сохранено' : '💾 Сохранить'}
             </button>
           )}
 

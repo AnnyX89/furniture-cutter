@@ -45,6 +45,8 @@ export default function App() {
   const [tab, setTab] = useState<TabId>('materials');
   const [newName, setNewName] = useState('');
   const [showNew, setShowNew] = useState(false);
+  const [designDraft, setDesignDraft] = useState<import('./types').RoomDesign | null>(null);
+  const [savedIndicator, setSavedIndicator] = useState(false);
 
   useEffect(() => {
     if (window.location.hash.includes('error=')) {
@@ -194,7 +196,19 @@ export default function App() {
           <h1 className="font-semibold text-gray-900">{current.name}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs text-gray-400">Сохраняется автоматически</div>
+          {tab === 'designer' && (
+            <button
+              onClick={async () => {
+                const design = designDraft ?? current.design;
+                if (design) await handleProjectChange({ ...current, design, updatedAt: new Date().toISOString() });
+                setSavedIndicator(true);
+                setTimeout(() => setSavedIndicator(false), 2500);
+              }}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium ${savedIndicator ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              {savedIndicator ? '✅ Сохранено' : '💾 Сохранить'}
+            </button>
+          )}
           <button onClick={signOut} className="text-xs text-gray-500 border rounded px-3 py-1.5 hover:bg-gray-50">Выйти</button>
         </div>
       </header>
@@ -222,7 +236,7 @@ export default function App() {
             project={current}
             firstMaterialId={current.materials[0]?.id ?? ''}
             onSaveDesign={design => {
-              handleProjectChange({ ...current, design, updatedAt: new Date().toISOString() });
+              setDesignDraft(design);
             }}
             onSendToCutting={parts => {
               const updated = { ...current, parts: [...current.parts, ...parts], updatedAt: new Date().toISOString() };

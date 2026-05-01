@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -193,6 +193,8 @@ function buildCanvasTex(id: string, color: string): THREE.CanvasTexture | null {
   return tex;
 }
 
+type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding';
+
 interface Item3D {
   id: string;
   templateId: string;
@@ -203,6 +205,8 @@ interface Item3D {
   rotation: number;
   color: string;
   facadeStyle: FacadeStyle;
+  customH3d?: number;
+  cabinetType?: CabinetType;
 }
 
 interface RoomData {
@@ -316,19 +320,84 @@ interface FMProps {
   ix: number; iy: number; iz: number;
   rotY: number; color: string;
   roughness: number; metalness: number;
+  cabinetType?: CabinetType;
 }
 
-function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
-  const doors = Math.max(1, Math.round(iw / 0.55));
-  const dw = iw / doors;
+function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors' }: FMProps) {
   const DT = 0.018;
   const g = 0.002;
+  const T = 0.018;
+
+  const body = (
+    <mesh>
+      <boxGeometry args={[iw, itemH, id]} />
+      <meshStandardMaterial color={color} roughness={0.8} />
+    </mesh>
+  );
+
+  if (cabinetType === 'open') {
+    const shelves = Math.max(2, Math.floor(itemH / 0.35));
+    const spacing = itemH / (shelves + 1);
+    return (
+      <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+        <mesh position={[-iw / 2 + T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+        <mesh position={[iw / 2 - T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+        <mesh position={[0, itemH / 2 - T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+        <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+        <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, itemH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+        {Array.from({ length: shelves - 1 }, (_, i) => (
+          <mesh key={i} position={[0, -itemH / 2 + spacing * (i + 1), 0]}>
+            <boxGeometry args={[iw - T * 2, T, id - T]} /><meshStandardMaterial color={color} roughness={0.75} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
+  if (cabinetType === 'drawers') {
+    const drawers = Math.max(2, Math.floor(itemH / 0.22));
+    const dh = itemH / drawers;
+    return (
+      <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+        {body}
+        {Array.from({ length: drawers }, (_, i) => (
+          <group key={i} position={[0, -itemH / 2 + dh * (i + 0.5), id / 2 + 0.009]}>
+            <mesh><boxGeometry args={[iw - g * 2, dh - g * 2, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+            <mesh position={[0, 0, 0.013]}>
+              <boxGeometry args={[iw * 0.22, 0.012, 0.008]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    );
+  }
+
+  if (cabinetType === 'sliding') {
+    const panelW = iw / 2 + 0.01;
+    return (
+      <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+        {body}
+        <mesh position={[-iw * 0.12, 0, id / 2 + DT / 2 + 0.001]}>
+          <boxGeometry args={[panelW - g, itemH - g * 2, DT]} />
+          <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+        </mesh>
+        <mesh position={[iw * 0.12, 0, id / 2 + DT + 0.003]}>
+          <boxGeometry args={[panelW - g, itemH - g * 2, DT]} />
+          <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+        </mesh>
+        <mesh position={[0, 0, id / 2 + DT * 1.5 + 0.005]}>
+          <boxGeometry args={[iw, 0.008, 0.005]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.7} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // default: doors
+  const doors = Math.max(1, Math.round(iw / 0.55));
+  const dw = iw / doors;
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
-      <mesh>
-        <boxGeometry args={[iw, itemH, id]} />
-        <meshStandardMaterial color={color} roughness={0.8} />
-      </mesh>
+      {body}
       {Array.from({ length: doors }, (_, i) => (
         <group key={i} position={[-iw / 2 + dw * (i + 0.5), 0, id / 2 + DT / 2 + 0.001]}>
           <mesh>
@@ -445,10 +514,32 @@ function DresserMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metaln
   );
 }
 
-function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors' }: FMProps) {
   const ctT = 0.04;
   const bodyH = itemH - ctT;
   const ovh = 0.02;
+  const g = 0.003;
+
+  let facade: React.ReactNode;
+  if (cabinetType === 'drawers') {
+    const drawers = Math.max(2, Math.floor(bodyH / 0.18));
+    const dh = bodyH / drawers;
+    facade = Array.from({ length: drawers }, (_, i) => (
+      <group key={i} position={[0, -itemH / 2 + dh * (i + 0.5), id / 2 + 0.01]}>
+        <mesh><boxGeometry args={[iw - g * 2, dh - g * 2, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+        <mesh position={[0, 0, 0.013]}><boxGeometry args={[iw * 0.25, 0.01, 0.008]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} /></mesh>
+      </group>
+    ));
+  } else if (cabinetType === 'open') {
+    facade = null;
+  } else {
+    facade = (
+      <mesh position={[0, -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
+        <boxGeometry args={[iw - 0.004, bodyH - 0.08, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+      </mesh>
+    );
+  }
+
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
       <mesh position={[0, -itemH / 2 + bodyH / 2, 0]}>
@@ -457,9 +548,7 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
       <mesh position={[0, -itemH / 2 + bodyH + ctT / 2, 0]}>
         <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color="#6b7280" roughness={0.35} metalness={0.15} />
       </mesh>
-      <mesh position={[0, -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
-        <boxGeometry args={[iw - 0.004, bodyH - 0.08, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
-      </mesh>
+      {facade}
     </group>
   );
 }
@@ -496,7 +585,7 @@ function FridgeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalne
 
 function FurnitureMesh({ item }: { item: Item3D }) {
   const heights = FURNITURE_3D_HEIGHTS[item.templateId];
-  const itemH = (heights?.h ?? 800) * MM;
+  const itemH = (item.customH3d ?? heights?.h ?? 800) * MM;
   const mountedAt = (heights?.mountedAt ?? 0) * MM;
   const facade = FACADE_OPTIONS.find(f => f.id === item.facadeStyle) ?? FACADE_OPTIONS[0];
 
@@ -507,7 +596,7 @@ function FurnitureMesh({ item }: { item: Item3D }) {
   const iy = mountedAt + itemH / 2;
   const rotY = -item.rotation * (Math.PI / 180);
 
-  const props: FMProps = { iw, itemH, id, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness };
+  const props: FMProps = { iw, itemH, id, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness, cabinetType: item.cabinetType };
   const tid = item.templateId;
 
   if (tid.includes('bookshelf') || tid.includes('bookcase'))  return <BookcaseMesh {...props} />;

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, lazy, Suspense, useEffect } from 'react'
 import { HexColorPicker } from 'react-colorful';
 import { FURNITURE, CATEGORIES } from './furnitureLibrary';
 import type { FurnitureTemplate } from './furnitureLibrary';
-import { COLOR_SCHEMES, FACADE_OPTIONS } from './colorSchemes';
+import { COLOR_SCHEMES, FACADE_OPTIONS, FURNITURE_3D_HEIGHTS } from './colorSchemes';
 import type { FacadeStyle, ColorScheme } from './colorSchemes';
 import { generateFurnitureParts } from './furnitureParts';
 import type { Part, Project, RoomDesign } from '../../types';
@@ -15,6 +15,10 @@ import type { ApplianceModel } from './applianceCatalog';
 import { FLOOR_TEXTURES, WALL_TEXTURES, CEIL_TEXTURES } from './texturePresets';
 
 const Room3D = lazy(() => import('./Room3D'));
+
+function FURNITURE_3D_HEIGHTS_DEFAULT(templateId: string) {
+  return FURNITURE_3D_HEIGHTS[templateId]?.h ?? 800;
+}
 
 interface Room {
   width: number;
@@ -39,6 +43,8 @@ interface Niche {
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 
+export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding';
+
 interface PlacedItem {
   id: string;
   templateId: string;
@@ -52,6 +58,8 @@ interface PlacedItem {
   facadeStyle: FacadeStyle;
   shape?: string;
   icon: string;
+  customH3d?: number;
+  cabinetType?: CabinetType;
 }
 
 interface DesignerTabProps {
@@ -156,6 +164,19 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
   const [activeScheme, setActiveScheme] = useState<string | null>(null);
+  const [recentColors, setRecentColors] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('fc_recent_colors') ?? '[]'); } catch { return []; }
+  });
+
+  function addRecentColor(c: string) {
+    const PRESET = ['#c8d6e5','#74b9ff','#a29bfe','#55efc4','#00b894','#ffeaa7','#fdcb6e','#e17055','#fd79a8','#636e72','#2d3436','#ffffff','#dfe6e9','#b2bec3'];
+    if (PRESET.includes(c)) return;
+    setRecentColors(prev => {
+      const next = [c, ...prev.filter(x => x !== c)].slice(0, 8);
+      localStorage.setItem('fc_recent_colors', JSON.stringify(next));
+      return next;
+    });
+  }
 
   // Рулетка
   const [measureMode, setMeasureMode] = useState(false);
@@ -675,7 +696,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
           <div className="border-t p-3 bg-blue-50 flex-shrink-0">
             <div className="text-xs font-semibold text-blue-800 mb-1.5 truncate">{selectedItem.name}</div>
             {/* Размеры модуля */}
-            <div className="grid grid-cols-2 gap-1.5 mb-2">
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
               <div>
                 <label className="text-xs text-gray-400">Ш (мм)</label>
                 <input type="number" step="100" min="100" max="5000"
@@ -691,6 +712,15 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   value={selectedItem.h}
                   onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: +e.target.value || i.h } : i))}
                   onBlur={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: Math.max(100, +e.target.value || i.h) } : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Выс (мм)</label>
+                <input type="number" step="50" min="100" max="3000"
+                  value={selectedItem.customH3d ?? ''}
+                  placeholder={String(FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId))}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: e.target.value ? +e.target.value : undefined } : i))}
                   onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
@@ -711,11 +741,22 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 ))}
                 <ColorPickerPopup
                   color={selectedItem.color}
-                  onChange={c => setItems(p => p.map(i => i.id===selected ? {...i,color:c} : i))} />
+                  onChange={c => { addRecentColor(c); setItems(p => p.map(i => i.id===selected ? {...i,color:c} : i)); }} />
               </div>
+              {recentColors.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  <span className="text-[10px] text-gray-400 self-center mr-0.5">Недавние:</span>
+                  {recentColors.map(c => (
+                    <button key={c}
+                      onClick={() => setItems(p => p.map(i => i.id===selected ? {...i,color:c} : i))}
+                      className={`w-5 h-5 rounded border-2 ${selectedItem.color===c ? 'border-blue-500 scale-110' : 'border-gray-300'}`}
+                      style={{background:c}} />
+                  ))}
+                </div>
+              )}
             </div>
             {/* Фасад 3D */}
-            <div>
+            <div className="mb-2">
               <div className="text-xs text-gray-500 mb-1">Фасад (3D)</div>
               <div className="grid grid-cols-3 gap-1">
                 {FACADE_OPTIONS.map(f => (
@@ -724,6 +765,19 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                     title={f.description}
                     className={`text-xs py-1 px-1 rounded border leading-tight ${selectedItem.facadeStyle===f.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
                     {f.icon} {f.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Тип наполнения */}
+            <div>
+              <div className="text-xs text-gray-500 mb-1">Тип наполнения (3D)</div>
+              <div className="grid grid-cols-4 gap-1">
+                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
+                  <button key={type}
+                    onClick={() => setItems(p => p.map(i => i.id===selected ? {...i,cabinetType:type} : i))}
+                    className={`text-xs py-1 rounded border leading-tight flex flex-col items-center gap-0.5 ${(selectedItem.cabinetType??'doors')===type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
+                    <span>{icon}</span><span className="text-[10px]">{label}</span>
                   </button>
                 ))}
               </div>

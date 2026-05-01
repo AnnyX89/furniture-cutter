@@ -8,6 +8,7 @@ import { generateFurnitureParts } from './furnitureParts';
 import type { Part, Project, RoomDesign } from '../../types';
 import { v4 as uuid } from 'uuid';
 import DesignSuggestionsModal from './DesignSuggestionsModal';
+import AIDesignAssistant from './AIDesignAssistant';
 import type { PlacedItem as SuggestedItem } from './designTemplates';
 import { searchAppliances } from './applianceCatalog';
 import type { ApplianceModel } from './applianceCatalog';
@@ -163,6 +164,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const [hoverPos, setHoverPos] = useState<{x:number;y:number}|null>(null);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showAI, setShowAI] = useState(false);
 
   const canvasRef = useRef<SVGSVGElement>(null);
   const RW = roomToScreen(room.width);
@@ -731,7 +733,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
       </div>
 
       {/* ── Рабочая область ─────────────────────── */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col relative">
 
         {/* Тулбар */}
         <div className="bg-white border-b px-3 py-1.5 flex items-center gap-2 flex-wrap flex-shrink-0">
@@ -773,6 +775,14 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 font-medium"
           >
             ✨ Варианты
+          </button>
+
+          {/* AI-ассистент */}
+          <button
+            onClick={() => setShowAI(v => !v)}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${showAI ? 'bg-blue-700 text-white' : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700'}`}
+          >
+            🤖 AI-дизайнер
           </button>
 
           <div className="flex-1" />
@@ -1012,6 +1022,29 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
               )}
             </svg>
           </div>
+        )}
+
+        {/* AI-ассистент панель */}
+        {showAI && (
+          <AIDesignAssistant
+            room={room}
+            items={items}
+            projectName={project?.name ?? 'Комната'}
+            onApplyItems={suggested => setItems(suggested as unknown as PlacedItem[])}
+            onSetColors={c => setRoom(r => ({
+              ...r,
+              ...(c.wallColor    ? { wallColor: c.wallColor, wallTexture: 'solid' }    : {}),
+              ...(c.floorColor   ? { floorColor: c.floorColor, floorTexture: 'solid' } : {}),
+              ...(c.ceilingColor ? { ceilingColor: c.ceilingColor, ceilTexture: 'solid' } : {}),
+            }))}
+            onSetTextures={t => setRoom(r => ({
+              ...r,
+              ...(t.wallTexture  ? { wallTexture: t.wallTexture }   : {}),
+              ...(t.floorTexture ? { floorTexture: t.floorTexture }  : {}),
+              ...(t.ceilTexture  ? { ceilTexture: t.ceilTexture }    : {}),
+            }))}
+            onClose={() => setShowAI(false)}
+          />
         )}
       </div>
 

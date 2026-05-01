@@ -36,6 +36,7 @@ function shadeHex(hex: string, f: number): string {
   const [r,g,b] = hexToRgb(hex);
   return `rgb(${clamp8(r*(1+f))},${clamp8(g*(1+f))},${clamp8(b*(1+f))})`;
 }
+
 function drawVeins(ctx: CanvasRenderingContext2D, S: number, color: string, n: number) {
   ctx.strokeStyle = color;
   for (let i = 0; i < n; i++) {
@@ -308,6 +309,191 @@ function SmartWall({ position, rotation = [0, 0, 0], planeW, planeH, color, roug
   );
 }
 
+// ── Realistic furniture sub-meshes ───────────────────────────────────────────
+
+interface FMProps {
+  iw: number; itemH: number; id: number;
+  ix: number; iy: number; iz: number;
+  rotY: number; color: string;
+  roughness: number; metalness: number;
+}
+
+function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+  const doors = Math.max(1, Math.round(iw / 0.55));
+  const dw = iw / doors;
+  const DT = 0.018;
+  const g = 0.002;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh>
+        <boxGeometry args={[iw, itemH, id]} />
+        <meshStandardMaterial color={color} roughness={0.8} />
+      </mesh>
+      {Array.from({ length: doors }, (_, i) => (
+        <group key={i} position={[-iw / 2 + dw * (i + 0.5), 0, id / 2 + DT / 2 + 0.001]}>
+          <mesh>
+            <boxGeometry args={[dw - g, itemH - g * 2, DT]} />
+            <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+          </mesh>
+          <mesh position={[i < doors / 2 ? dw * 0.3 : -dw * 0.3, -itemH * 0.04, DT / 2 + 0.005]}>
+            <boxGeometry args={[0.01, 0.1, 0.008]} />
+            <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function BookcaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color }: FMProps) {
+  const shelves = Math.max(2, Math.floor(itemH / 0.35));
+  const spacing = itemH / (shelves + 1);
+  const T = 0.018;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[-iw / 2 + T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+      <mesh position={[iw / 2 - T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+      <mesh position={[0, itemH / 2 - T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+      <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+      <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, itemH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
+      {Array.from({ length: shelves - 1 }, (_, i) => (
+        <mesh key={i} position={[0, -itemH / 2 + spacing * (i + 1), 0]}>
+          <boxGeometry args={[iw - T * 2, T, id - T]} /><meshStandardMaterial color={color} roughness={0.75} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function TableMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+  const topT = 0.038;
+  const legS = Math.min(0.06, iw * 0.08);
+  const legH = itemH - topT;
+  const pad = 0.07;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[0, itemH / 2 - topT / 2, 0]}>
+        <boxGeometry args={[iw, topT, id]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+      </mesh>
+      {([[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][]).map(([sx, sz], i) => (
+        <mesh key={i} position={[sx * (iw / 2 - pad), -itemH / 2 + legH / 2, sz * (id / 2 - pad)]}>
+          <boxGeometry args={[legS, legH, legS]} /><meshStandardMaterial color={color} roughness={0.65} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function SofaMesh({ iw, itemH, id, ix, iy, iz, rotY, color }: FMProps) {
+  const sH = itemH * 0.44;
+  const bH = itemH * 0.56;
+  const aW = Math.min(0.1, iw * 0.09);
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[0, -itemH / 2 + sH / 2, id * 0.1]}>
+        <boxGeometry args={[iw, sH, id * 0.64]} /><meshStandardMaterial color={color} roughness={0.9} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + sH + bH / 2, -id * 0.27]}>
+        <boxGeometry args={[iw, bH, id * 0.22]} /><meshStandardMaterial color={color} roughness={0.9} />
+      </mesh>
+      {([-1, 1] as number[]).map((s, i) => (
+        <mesh key={i} position={[s * (iw / 2 - aW / 2), -itemH / 2 + sH * 0.78, id * 0.1]}>
+          <boxGeometry args={[aW, sH * 0.82, id * 0.64]} /><meshStandardMaterial color={color} roughness={0.9} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BedMesh({ iw, itemH, id, ix, iy, iz, rotY, color }: FMProps) {
+  const frameH = itemH * 0.5;
+  const mattH  = itemH * 0.38;
+  const headT  = 0.06;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[0, -itemH / 2 + frameH / 2, 0]}>
+        <boxGeometry args={[iw, frameH, id]} /><meshStandardMaterial color={color} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + frameH + mattH / 2, 0]}>
+        <boxGeometry args={[iw * 0.94, mattH, id * 0.92]} /><meshStandardMaterial color="#f0ece8" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, 0, -id / 2 + headT / 2]}>
+        <boxGeometry args={[iw, itemH, headT]} /><meshStandardMaterial color={color} roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+function DresserMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+  const drawers = Math.max(2, Math.floor(itemH / 0.18));
+  const dh = itemH / drawers;
+  const g = 0.003;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh>
+        <boxGeometry args={[iw, itemH, id]} /><meshStandardMaterial color={color} roughness={0.8} />
+      </mesh>
+      {Array.from({ length: drawers }, (_, i) => (
+        <group key={i} position={[0, -itemH / 2 + dh * (i + 0.5), id / 2 + 0.009]}>
+          <mesh><boxGeometry args={[iw - g * 2, dh - g * 2, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+          <mesh position={[0, 0, 0.013]}>
+            <boxGeometry args={[iw * 0.22, 0.012, 0.008]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+  const ctT = 0.04;
+  const bodyH = itemH - ctT;
+  const ovh = 0.02;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[0, -itemH / 2 + bodyH / 2, 0]}>
+        <boxGeometry args={[iw, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.75} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + bodyH + ctT / 2, 0]}>
+        <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color="#6b7280" roughness={0.35} metalness={0.15} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
+        <boxGeometry args={[iw - 0.004, bodyH - 0.08, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+      </mesh>
+    </group>
+  );
+}
+
+function FridgeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
+  const DT = 0.018;
+  const freezerH = itemH * 0.32;
+  const fridgeH = itemH - freezerH;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh>
+        <boxGeometry args={[iw, itemH, id]} />
+        <meshStandardMaterial color={color} roughness={0.75} metalness={0.1} />
+      </mesh>
+      <mesh position={[0, itemH / 2 - freezerH / 2, id / 2 + DT / 2 + 0.001]}>
+        <boxGeometry args={[iw - 0.008, freezerH - 0.004, DT]} />
+        <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + fridgeH / 2, id / 2 + DT / 2 + 0.001]}>
+        <boxGeometry args={[iw - 0.008, fridgeH - 0.004, DT]} />
+        <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+      </mesh>
+      <mesh position={[iw * 0.28, itemH / 2 - freezerH / 2, id / 2 + DT + 0.009]}>
+        <boxGeometry args={[0.012, freezerH * 0.4, 0.009]} />
+        <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+      </mesh>
+      <mesh position={[iw * 0.28, -itemH / 2 + fridgeH * 0.6, id / 2 + DT + 0.009]}>
+        <boxGeometry args={[0.012, fridgeH * 0.42, 0.009]} />
+        <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
 function FurnitureMesh({ item }: { item: Item3D }) {
   const heights = FURNITURE_3D_HEIGHTS[item.templateId];
   const itemH = (heights?.h ?? 800) * MM;
@@ -321,6 +507,18 @@ function FurnitureMesh({ item }: { item: Item3D }) {
   const iy = mountedAt + itemH / 2;
   const rotY = -item.rotation * (Math.PI / 180);
 
+  const props: FMProps = { iw, itemH, id, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness };
+  const tid = item.templateId;
+
+  if (tid.includes('bookshelf') || tid.includes('bookcase'))  return <BookcaseMesh {...props} />;
+  if (tid.includes('wardrobe') || tid.includes('coat-rack') || tid.startsWith('k-wall')) return <WardrobeMesh {...props} />;
+  if (tid.includes('dresser') || tid.includes('nightstand') || tid.includes('buffet') || tid === 'l-tv' || tid === 'h-console' || tid === 'o-cabinet') return <DresserMesh {...props} />;
+  if (tid.includes('desk') || tid.startsWith('d-table') || tid === 'k-island') return <TableMesh {...props} />;
+  if (tid.startsWith('l-sofa') || tid === 'l-armchair')       return <SofaMesh {...props} />;
+  if (tid.includes('bed'))                                     return <BedMesh {...props} />;
+  if (tid.startsWith('k-base') || tid === 'k-sink' || tid === 'k-stove' || tid === 'k-dishwasher' || tid === 'k-corner') return <KitchenBaseMesh {...props} />;
+  if (tid === 'k-fridge') return <FridgeMesh {...props} />;
+
   return (
     <mesh position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
       <boxGeometry args={[iw, itemH, id]} />
@@ -330,27 +528,56 @@ function FurnitureMesh({ item }: { item: Item3D }) {
 }
 
 function NicheMesh({ niche, room, H }: { niche: Niche3D; room: RoomData; H: number }) {
-  const W = room.width * MM; const D = room.height * MM;
-  const sz = niche.size * MM;
-  const dp = niche.depth * MM;
-  const p = niche.pos * MM;
-  const cy = H / 2;
+  const W = room.width * MM;
+  const D = room.height * MM;
+  const sz  = niche.size  * MM;
+  const dp  = niche.depth * MM;
+  const p   = niche.pos   * MM;
+  const col = room.wallColor;
 
-  let pos: [number,number,number] = [0,0,0];
-  if (niche.wall === 'top')    { pos = [p + sz/2, cy, dp/2]; }
-  if (niche.wall === 'bottom') { pos = [p + sz/2, cy, D - dp/2]; }
-  if (niche.wall === 'left')   { pos = [dp/2,     cy, p + sz/2]; }
-  if (niche.wall === 'right')  { pos = [W - dp/2, cy, p + sz/2]; }
+  type Panel = { pos: [number, number, number]; rot: [number, number, number]; pw: number; ph: number };
+  const panels: Panel[] = [];
 
-  const isHoriz = niche.wall === 'top' || niche.wall === 'bottom';
-  const bw = isHoriz ? sz : dp;
-  const bd = isHoriz ? dp : sz;
+  // Each wall: niche cavity extends OUTSIDE the room by dp.
+  // We render back + 2 sides + top + floor of the cavity.
+  if (niche.wall === 'top') {
+    panels.push({ pos: [p + sz / 2, H / 2, -dp],      rot: [0, 0, 0],              pw: sz, ph: H  }); // back
+    panels.push({ pos: [p,          H / 2, -dp / 2],   rot: [0, Math.PI / 2, 0],   pw: dp, ph: H  }); // left side
+    panels.push({ pos: [p + sz,     H / 2, -dp / 2],   rot: [0, Math.PI / 2, 0],   pw: dp, ph: H  }); // right side
+    panels.push({ pos: [p + sz / 2, H,     -dp / 2],   rot: [Math.PI / 2, 0, 0],   pw: sz, ph: dp }); // ceiling
+    panels.push({ pos: [p + sz / 2, 0,     -dp / 2],   rot: [Math.PI / 2, 0, 0],   pw: sz, ph: dp }); // floor
+  }
+  if (niche.wall === 'bottom') {
+    panels.push({ pos: [p + sz / 2, H / 2, D + dp],     rot: [0, 0, 0],            pw: sz, ph: H  });
+    panels.push({ pos: [p,          H / 2, D + dp / 2],  rot: [0, Math.PI / 2, 0], pw: dp, ph: H  });
+    panels.push({ pos: [p + sz,     H / 2, D + dp / 2],  rot: [0, Math.PI / 2, 0], pw: dp, ph: H  });
+    panels.push({ pos: [p + sz / 2, H,     D + dp / 2],  rot: [Math.PI / 2, 0, 0], pw: sz, ph: dp });
+    panels.push({ pos: [p + sz / 2, 0,     D + dp / 2],  rot: [Math.PI / 2, 0, 0], pw: sz, ph: dp });
+  }
+  if (niche.wall === 'left') {
+    panels.push({ pos: [-dp,     H / 2, p + sz / 2],  rot: [0, Math.PI / 2, 0], pw: sz, ph: H  });
+    panels.push({ pos: [-dp / 2, H / 2, p],            rot: [0, 0, 0],           pw: dp, ph: H  });
+    panels.push({ pos: [-dp / 2, H / 2, p + sz],       rot: [0, 0, 0],           pw: dp, ph: H  });
+    panels.push({ pos: [-dp / 2, H,     p + sz / 2],   rot: [Math.PI / 2, 0, 0], pw: dp, ph: sz });
+    panels.push({ pos: [-dp / 2, 0,     p + sz / 2],   rot: [Math.PI / 2, 0, 0], pw: dp, ph: sz });
+  }
+  if (niche.wall === 'right') {
+    panels.push({ pos: [W + dp,     H / 2, p + sz / 2], rot: [0, Math.PI / 2, 0], pw: sz, ph: H  });
+    panels.push({ pos: [W + dp / 2, H / 2, p],           rot: [0, 0, 0],           pw: dp, ph: H  });
+    panels.push({ pos: [W + dp / 2, H / 2, p + sz],      rot: [0, 0, 0],           pw: dp, ph: H  });
+    panels.push({ pos: [W + dp / 2, H,     p + sz / 2],  rot: [Math.PI / 2, 0, 0], pw: dp, ph: sz });
+    panels.push({ pos: [W + dp / 2, 0,     p + sz / 2],  rot: [Math.PI / 2, 0, 0], pw: dp, ph: sz });
+  }
 
   return (
-    <mesh position={pos}>
-      <boxGeometry args={[bw, H, bd]} />
-      <meshStandardMaterial color={room.wallColor} roughness={0.9} />
-    </mesh>
+    <group>
+      {panels.map((panel, i) => (
+        <mesh key={i} position={panel.pos} rotation={panel.rot}>
+          <planeGeometry args={[panel.pw, panel.ph]} />
+          <meshStandardMaterial color={col} roughness={0.9} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -359,7 +586,7 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
   const D = room.height * MM;
   const H = ceilingHeight * MM;
 
-  // Build wall holes from doors + windows
+  // Build wall holes from doors + windows + niches
   const wallHoles = useMemo(() => {
     const result: Record<'top'|'bottom'|'left'|'right', WallHole[]> = {
       top: [], bottom: [], left: [], right: [],
@@ -377,20 +604,27 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
     for (const op of all) {
       const isHoriz = op.wall === 'top' || op.wall === 'bottom';
       const wallLen  = isHoriz ? rW : rH;
-      const wallW    = isHoriz ? W  : D;   // wall width in meters
+      const wallW    = isHoriz ? W  : D;
       const rawPos   = (op.fromEnd ? wallLen - op.pos - op.size : op.pos) * MM;
       const sz       = op.size * MM;
-
-      // top/bottom walls: local x = world x (direct)
-      // left/right walls: local x = wallW - worldZ - sz (mirrored, because rotation π/2 around Y flips Z→-X)
-      const holeX = isHoriz ? rawPos : (wallW - rawPos - sz);
-
+      const holeX    = isHoriz ? rawPos : (wallW - rawPos - sz);
       const winH = op.isWindow ? (op.winHeight ?? 1000) * MM : DOOR_HEIGHT;
       const winY = op.isWindow ? (op.winSill   ??  900) * MM : 0;
       result[op.wall].push({ x: holeX, y: winY, w: sz, h: winH, isWindow: op.isWindow });
     }
+
+    // Niches cut a full-height opening in the wall plane
+    for (const n of niches) {
+      const isHoriz = n.wall === 'top' || n.wall === 'bottom';
+      const wallW   = isHoriz ? W : D;
+      const rawPos  = n.pos  * MM;
+      const sz      = n.size * MM;
+      const holeX   = isHoriz ? rawPos : (wallW - rawPos - sz);
+      result[n.wall].push({ x: holeX, y: 0, w: sz, h: H, isWindow: false });
+    }
+
     return result;
-  }, [doors, windows, room.width, room.height, W, D]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doors, windows, niches, room.width, room.height, W, D, H]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Texture memos ────────────────────────────────────────────────────────────
   const floorMat = useMemo(() => {

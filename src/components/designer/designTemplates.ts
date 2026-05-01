@@ -50,7 +50,7 @@ function kitchenLinear(r: RoomDims): PlacedItem[] {
     items.push(item(seg.name, seg.id, x, 0, seg.w, d, seg.color, seg.icon));
     x += seg.w;
   }
-  items.push(item('Холодильник', 'k-fridge', startX + total + 100 > r.width - 650 ? 0 : startX + total + 50, 0, 600, 650, '#f8fafc', '❄️'));
+  items.push(item('Холодильник', 'k-fridge', r.width - 650, 0, 600, 650, '#f8fafc', '❄️'));
   return items;
 }
 
@@ -140,8 +140,8 @@ function bedroomClassic(r: RoomDims): PlacedItem[] {
   const bx = (r.width - bw) / 2;
   return [
     item('Кровать', 'b-bed-double', bx, r.height - 2100, bw, 2000, '#f9a8d4', '🛏️'),
-    item('Тумба', 'b-nightstand', bx - 550, r.height - 1500, 500, 400, '#fef3c7', '🕯️'),
-    item('Тумба', 'b-nightstand', bx + bw + 50, r.height - 1500, 500, 400, '#fef3c7', '🕯️'),
+    item('Тумба', 'b-nightstand', Math.max(0, bx - 550), r.height - 1500, 500, 400, '#fef3c7', '🕯️'),
+    item('Тумба', 'b-nightstand', Math.min(r.width - 500, bx + bw + 50), r.height - 1500, 500, 400, '#fef3c7', '🕯️'),
     item('Шкаф-купе', 'b-wardrobe2', 0, 0, Math.min(2000, r.width), 600, '#fde68a', '👔'),
     item('Комод', 'b-dresser', r.width - 1050, r.height - 1600, 1000, 450, '#fed7aa', '🗃️'),
   ];
@@ -153,6 +153,42 @@ function bedroomSmall(r: RoomDims): PlacedItem[] {
     item('Тумба', 'b-nightstand', 950, r.height - 1500, 500, 400, '#fef3c7', '🕯️'),
     item('Шкаф-купе', 'b-wardrobe', r.width - 1500, 0, Math.min(1500, r.width), 600, '#fde68a', '👔'),
     item('Стол', 'o-desk', 0, 0, 1200, 600, '#d1fae5', '💻'),
+  ];
+}
+
+function bedroomLuxury(r: RoomDims): PlacedItem[] {
+  const bw = Math.min(2000, r.width - 600);
+  const bx = (r.width - bw) / 2;
+  return [
+    item('Кровать 200×200', 'b-bed-king', bx, r.height - 2200, bw, 2100, '#fda4af', '🛏️'),
+    item('Тумба', 'b-nightstand', Math.max(0, bx - 500), r.height - 1700, 450, 450, '#fef3c7', '🕯️'),
+    item('Тумба', 'b-nightstand', Math.min(r.width - 450, bx + bw + 50), r.height - 1700, 450, 450, '#fef3c7', '🕯️'),
+    item('Шкаф-купе', 'b-wardrobe2', 0, 0, r.width, 650, '#fde68a', '👔'),
+    item('Туалетный столик', 'b-dresser', r.width - 1000, r.height - 1500, 900, 450, '#fce7f3', '🪞'),
+    item('Кресло', 'l-armchair', 0, r.height - 1000, 850, 850, '#ede9fe', '💺'),
+  ];
+}
+
+function bedroomKids(r: RoomDims): PlacedItem[] {
+  return [
+    item('Детская кровать', 'b-bed-single', 0, 0, 900, 1900, '#bfdbfe', '🛏️'),
+    item('Стол письменный', 'o-desk', 0, r.height - 600, Math.min(1200, r.width), 600, '#d1fae5', '💻'),
+    item('Стеллаж', 'l-bookshelf', r.width - 800, 0, 800, 300, '#fde68a', '📚'),
+    item('Шкаф', 'b-wardrobe', r.width - 1200, r.height - 600, Math.min(1200, r.width * 0.4), 600, '#fef3c7', '👔'),
+    item('Тумба', 'b-nightstand', 950, 200, 500, 400, '#fed7aa', '🕯️'),
+  ];
+}
+
+function bedroomWithDressing(r: RoomDims): PlacedItem[] {
+  const bw = Math.min(1800, r.width - 400);
+  const bx = (r.width - bw) / 2;
+  const dressingW = Math.min(1800, r.width);
+  return [
+    item('Кровать', 'b-bed-double', bx, r.height - 2100, bw, 2000, '#f9a8d4', '🛏️'),
+    item('Тумба', 'b-nightstand', Math.max(0, bx - 500), r.height - 1500, 450, 400, '#fef3c7', '🕯️'),
+    item('Тумба', 'b-nightstand', Math.min(r.width - 450, bx + bw + 50), r.height - 1500, 450, 400, '#fef3c7', '🕯️'),
+    item('Гардеробный шкаф', 'b-wardrobe2', (r.width - dressingW) / 2, 0, dressingW, 600, '#fde68a', '👔'),
+    item('Комод', 'b-dresser', 0, r.height - 1000, 900, 450, '#fed7aa', '🗃️'),
   ];
 }
 
@@ -175,6 +211,71 @@ function livingCornerSofa(r: RoomDims): PlacedItem[] {
     item('ТВ тумба', 'l-tv', r.width - 1700, 0, 1600, 450, '#374151', '📺'),
     item('Журнальный стол', 'l-coffee', r.width - 1600, r.height - 1400, 1000, 600, '#d4d4d4', '⬛'),
     item('Стеллаж', 'l-bookshelf', 0, 0, 800, 300, '#d1fae5', '📚'),
+  ];
+}
+
+function livingCinema(r: RoomDims): PlacedItem[] {
+  const sw = Math.min(2400, r.width - 200);
+  return [
+    item('Экран/ТВ', 'l-tv', (r.width - 2000) / 2, 0, 2000, 400, '#1e293b', '📺'),
+    item('Диван широкий', 'l-sofa3', (r.width - sw) / 2, r.height - 950, sw, 900, '#6d28d9', '🛋️'),
+    item('Пуф', 'l-coffee', (r.width - 800) / 2, r.height - 1800, 800, 500, '#7c3aed', '⬛'),
+    item('Кресло', 'l-armchair', 0, r.height - 1000, 900, 900, '#ede9fe', '💺'),
+    item('Кресло', 'l-armchair', r.width - 900, r.height - 1000, 900, 900, '#ede9fe', '💺'),
+    item('Стеллаж', 'l-bookshelf', 0, 0, 1000, 300, '#fde68a', '📚'),
+  ];
+}
+
+function livingOpen(r: RoomDims): PlacedItem[] {
+  const sw = Math.min(1800, r.width - 400);
+  return [
+    item('ТВ тумба', 'l-tv', 0, 0, 1400, 450, '#374151', '📺'),
+    item('Диван', 'l-sofa2', (r.width - sw) / 2, r.height - 900, sw, 800, '#c4b5fd', '🛋️'),
+    item('Кресло', 'l-armchair', 0, r.height - 1700, 850, 850, '#ede9fe', '💺'),
+    item('Журнальный стол', 'l-coffee', (r.width - 800) / 2, r.height - 1600, 800, 500, '#d4d4d4', '⬛'),
+    item('Стол обеденный', 'o-desk2', r.width - 1300, 0, 1200, 800, '#fef3c7', '🍽️'),
+    item('Стул', 'l-armchair', r.width - 1300, 850, 400, 400, '#e0f2fe', '🪑'),
+    item('Стул', 'l-armchair', r.width - 850, 850, 400, 400, '#e0f2fe', '🪑'),
+  ];
+}
+
+// ── прихожая ─────────────────────────────────────────────────────────────────
+function hallwayMin(r: RoomDims): PlacedItem[] {
+  return [
+    item('Шкаф для одежды', 'b-wardrobe', 0, 0, Math.min(1800, r.width), 600, '#fde68a', '👔'),
+    item('Обувница', 'b-nightstand', 0, r.height - 400, Math.min(1000, r.width), 400, '#fef3c7', '👟'),
+    item('Зеркало', 'b-dresser', r.width - 600, 0, 500, 200, '#e0f2fe', '🪞'),
+  ];
+}
+
+function hallwayFull(r: RoomDims): PlacedItem[] {
+  return [
+    item('Шкаф-купе', 'b-wardrobe2', 0, 0, Math.min(2400, r.width), 650, '#fde68a', '👔'),
+    item('Тумба с зеркалом', 'b-dresser', 0, r.height - 500, Math.min(1200, r.width * 0.5), 450, '#fef3c7', '🪞'),
+    item('Пуф', 'l-coffee', Math.min(1300, r.width * 0.5), r.height - 500, 500, 400, '#ede9fe', '⬛'),
+    item('Обувница', 'b-nightstand', r.width - 800, r.height - 400, 800, 350, '#fed7aa', '👟'),
+  ];
+}
+
+// ── кабинет ──────────────────────────────────────────────────────────────────
+function officeBasic(r: RoomDims): PlacedItem[] {
+  return [
+    item('Рабочий стол', 'o-desk', 0, 0, Math.min(1600, r.width), 700, '#d1fae5', '💻'),
+    item('Кресло офисное', 'l-armchair', (Math.min(1600, r.width) - 700) / 2, 750, 700, 700, '#ede9fe', '🪑'),
+    item('Стеллаж', 'l-bookshelf', r.width - 900, 0, 900, 300, '#fde68a', '📚'),
+    item('Диван 2м', 'l-sofa2', 0, r.height - 850, Math.min(1800, r.width), 800, '#c4b5fd', '🛋️'),
+  ];
+}
+
+function officeFull(r: RoomDims): PlacedItem[] {
+  return [
+    item('Стол угловой', 'o-desk2', 0, 0, Math.min(1800, r.width * 0.65), 700, '#d1fae5', '💻'),
+    item('Кресло', 'l-armchair', 0, 750, 700, 700, '#ede9fe', '🪑'),
+    item('Тумба', 'b-nightstand', Math.min(1850, r.width * 0.65 + 50), 0, 500, 500, '#fef3c7', '🗃️'),
+    item('Шкаф', 'b-wardrobe', r.width - 1200, 0, Math.min(1200, r.width * 0.4), 600, '#fde68a', '📚'),
+    item('Переговорный стол', 'o-desk', (r.width - 1400) / 2, r.height - 900, 1400, 800, '#fef9c3', '🍽️'),
+    item('Кресло', 'l-armchair', (r.width - 1400) / 2, r.height - 1700, 700, 700, '#ede9fe', '🪑'),
+    item('Кресло', 'l-armchair', (r.width + 200) / 2, r.height - 1700, 700, 700, '#ede9fe', '🪑'),
   ];
 }
 
@@ -245,9 +346,20 @@ export function generateVariants(roomName: string, room: RoomDims): DesignVarian
   } else if (type === 'bedroom') {
     variants.push({ id: 'b-classic', name: 'Классическая', description: 'Кровать у стены, шкаф-купе, прикроватные тумбы.', items: bedroomClassic(room) });
     variants.push({ id: 'b-small', name: 'Рабочая зона', description: 'Односпальная кровать + рабочий стол. Для небольших комнат.', items: bedroomSmall(room) });
+    variants.push({ id: 'b-luxury', name: 'Люкс', description: 'Кровать 200×200, кресло, большой гардероб.', items: bedroomLuxury(room) });
+    variants.push({ id: 'b-kids', name: 'Детская', description: 'Кровать, рабочий стол, стеллаж — для ребёнка или подростка.', items: bedroomKids(room) });
+    variants.push({ id: 'b-dressing', name: 'С гардеробной', description: 'Двуспальная кровать + вместительная гардеробная зона.', items: bedroomWithDressing(room) });
   } else if (type === 'living') {
     variants.push({ id: 'l-tv', name: 'Классическая', description: 'Диван напротив ТВ, журнальный стол, кресла.', items: livingTV(room) });
     variants.push({ id: 'l-corner', name: 'Угловой диван', description: 'Угловой диван + ТВ-зона. Максимум места для отдыха.', items: livingCornerSofa(room) });
+    variants.push({ id: 'l-cinema', name: 'Домашний кинотеатр', description: 'Широкий экран, мягкие кресла, затемнённая атмосфера.', items: livingCinema(room) });
+    variants.push({ id: 'l-open', name: 'Гостиная-столовая', description: 'Диван + обеденная зона — открытая планировка.', items: livingOpen(room) });
+  } else if (type === 'hallway') {
+    variants.push({ id: 'h-min', name: 'Минимализм', description: 'Шкаф, обувница и зеркало — только необходимое.', items: hallwayMin(room) });
+    variants.push({ id: 'h-full', name: 'Полная комплектация', description: 'Шкаф-купе, тумба с зеркалом, пуф и обувница.', items: hallwayFull(room) });
+  } else if (type === 'office') {
+    variants.push({ id: 'o-basic', name: 'Рабочий кабинет', description: 'Рабочий стол, кресло, стеллаж и небольшой диван.', items: officeBasic(room) });
+    variants.push({ id: 'o-full', name: 'Переговорная', description: 'Угловой стол, шкаф и переговорный стол с креслами.', items: officeFull(room) });
   }
 
   return variants.map(v => ({

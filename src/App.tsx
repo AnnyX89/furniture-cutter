@@ -204,9 +204,10 @@ export default function App() {
                 setSavedIndicator(true);
                 setTimeout(() => setSavedIndicator(false), 2500);
               }}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium ${savedIndicator ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${savedIndicator ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              title="Сохранить дизайн"
             >
-              {savedIndicator ? '✅ Сохранено' : '💾 Сохранить'}
+              {savedIndicator ? '✅ Сохранено' : '💾 Сохранить дизайн'}
             </button>
           )}
           <button onClick={signOut} className="text-xs text-gray-500 border rounded px-3 py-1.5 hover:bg-gray-50">Выйти</button>
@@ -237,6 +238,7 @@ export default function App() {
             firstMaterialId={current.materials[0]?.id ?? ''}
             onSaveDesign={design => {
               setDesignDraft(design);
+              handleProjectChange({ ...current, design, updatedAt: new Date().toISOString() });
             }}
             onSendToCutting={parts => {
               const updated = { ...current, parts: [...current.parts, ...parts], updatedAt: new Date().toISOString() };

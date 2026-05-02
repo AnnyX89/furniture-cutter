@@ -20,6 +20,41 @@ function FURNITURE_3D_HEIGHTS_DEFAULT(templateId: string) {
   return FURNITURE_3D_HEIGHTS[templateId]?.h ?? 800;
 }
 
+function FurnitureTopView({ id, w, h, color }: { id: string; w: number; h: number; color: string }) {
+  const MAX = 36;
+  const scale = MAX / Math.max(w, h);
+  const W = w * scale; const H = h * scale;
+  const ox = (MAX - W) / 2; const oy = (MAX - H) / 2;
+  const isSofa = id.startsWith('l-sofa') || id === 'l-armchair';
+  const isBed  = id.includes('bed');
+  const isBase = id.startsWith('k-base') || id === 'k-sink' || id === 'k-stove' || id === 'k-dishwasher';
+  const isTable = id.includes('table') || id === 'k-island' || id === 'l-coffee';
+  const isWardrobe = id.includes('wardrobe') || id.startsWith('k-wall');
+  return (
+    <svg width={MAX} height={MAX} viewBox={`0 0 ${MAX} ${MAX}`} className="flex-shrink-0">
+      <rect x={ox} y={oy} width={W} height={H} rx="1.5" fill={color} fillOpacity="0.85" stroke="#555" strokeWidth="0.8" />
+      {isSofa && <>
+        <rect x={ox+1} y={oy+1} width={W-2} height={H*0.28} rx="1" fill="rgba(0,0,0,0.18)" />
+        <rect x={ox+1} y={oy+H*0.72} width={H*0.22} height={H*0.27} rx="1" fill="rgba(0,0,0,0.12)" />
+        <rect x={ox+W-H*0.22-1} y={oy+H*0.72} width={H*0.22} height={H*0.27} rx="1" fill="rgba(0,0,0,0.12)" />
+      </>}
+      {isBed && <>
+        <rect x={ox+1} y={oy+1} width={W-2} height={H*0.22} rx="1" fill="rgba(0,0,0,0.22)" />
+        <rect x={ox+W*0.1} y={oy+H*0.28} width={W*0.8} height={H*0.6} rx="2" fill="rgba(255,255,255,0.5)" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+      </>}
+      {isBase && <line x1={ox+2} y1={oy+H*0.85} x2={ox+W-2} y2={oy+H*0.85} stroke="rgba(0,0,0,0.35)" strokeWidth="1" />}
+      {isWardrobe && (() => { const cnt = Math.max(1, Math.round(W/14)); return Array.from({length: cnt}, (_: unknown, i: number) => (
+        <line key={i} x1={ox + W*(i+0.5)/cnt} y1={oy+2} x2={ox + W*(i+0.5)/cnt} y2={oy+H-2} stroke="rgba(0,0,0,0.2)" strokeWidth="0.8" />
+      )); })()}
+      {isTable && <>
+        <rect x={ox+2} y={oy+2} width={W-4} height={H-4} rx="1" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="0.7" />
+      </>}
+    </svg>
+  );
+}
+
+type RoomCorner = 'tr' | 'br' | 'bl' | 'tl';
+
 interface Room {
   width: number;
   height: number;
@@ -29,6 +64,9 @@ interface Room {
   floorTexture: string;
   wallTexture: string;
   ceilTexture: string;
+  notchW?: number;
+  notchH?: number;
+  notchCorner?: RoomCorner;
 }
 
 interface Niche {
@@ -77,6 +115,20 @@ function roomToScreen(v: number) { return v * SCALE; }
 
 function buildRoomPath(room: Room, niches: Niche[]): string {
   const W = room.width; const H = room.height; const s = SCALE;
+
+  // L-shaped room
+  if (room.notchW && room.notchH) {
+    const nW = room.notchW * s; const nH = room.notchH * s;
+    const corner = room.notchCorner ?? 'br';
+    let pts: [number,number][];
+    if (corner === 'br') pts = [[0,0],[W*s,0],[W*s,(H-room.notchH)*s],[(W-room.notchW)*s,(H-room.notchH)*s],[(W-room.notchW)*s,H*s],[0,H*s]];
+    else if (corner === 'bl') pts = [[0,0],[W*s,0],[W*s,H*s],[room.notchW*s,H*s],[room.notchW*s,(H-room.notchH)*s],[0,(H-room.notchH)*s]];
+    else if (corner === 'tr') pts = [[0,0],[(W-room.notchW)*s,0],[(W-room.notchW)*s,room.notchH*s],[W*s,room.notchH*s],[W*s,H*s],[0,H*s]];
+    else pts = [[room.notchW*s,0],[W*s,0],[W*s,H*s],[0,H*s],[0,room.notchH*s],[room.notchW*s,room.notchH*s]];
+    return 'M ' + pts.map(([x,y]) => `${x},${y}`).join(' L ') + ' Z';
+    void nW; void nH;
+  }
+
   const top    = niches.filter(n => n.wall === 'top').sort((a,b) => a.pos - b.pos);
   const bottom = niches.filter(n => n.wall === 'bottom').sort((a,b) => a.pos - b.pos);
   const left   = niches.filter(n => n.wall === 'left').sort((a,b) => a.pos - b.pos);
@@ -287,6 +339,24 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
     if (ny <= WS) ny = 0;
     if (nx >= room.width  - item.w - WS) nx = room.width  - item.w;
     if (ny >= room.height - item.h - WS) ny = room.height - item.h;
+    // Не пускать мебель в вырезанный угол (Г-форма)
+    if (room.notchW && room.notchH) {
+      const nW = room.notchW; const nH = room.notchH;
+      const corner = room.notchCorner ?? 'br';
+      const inNotch = (x: number, y: number) => {
+        if (corner === 'br') return x + item.w > room.width - nW && y + item.h > room.height - nH;
+        if (corner === 'bl') return x < nW && y + item.h > room.height - nH;
+        if (corner === 'tr') return x + item.w > room.width - nW && y < nH;
+        return x < nW && y < nH; // tl
+      };
+      if (inNotch(nx, ny)) {
+        const corner2 = room.notchCorner ?? 'br';
+        if (corner2 === 'br') { nx = Math.min(nx, room.width - nW - item.w); }
+        else if (corner2 === 'bl') { nx = Math.max(nx, nW); }
+        else if (corner2 === 'tr') { nx = Math.min(nx, room.width - nW - item.w); }
+        else { nx = Math.max(nx, nW); }
+      }
+    }
     // Прилипание к границам ниш
     for (const niche of niches) {
       if (niche.wall === 'top' || niche.wall === 'bottom') {
@@ -396,10 +466,11 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
               <div className="px-2 pb-2 grid grid-cols-2 gap-1">
                 {FURNITURE.filter(f => f.category === activeCategory).map(f => (
                   <button key={f.id} onClick={() => addFurniture(f)}
-                    className="text-left p-2 rounded-lg border hover:border-blue-400 hover:bg-blue-50 text-xs"
-                    style={{ borderLeftColor: f.color, borderLeftWidth: 3 }}>
-                    <div className="font-medium text-gray-700 leading-tight">{f.name}</div>
-                    <div className="text-gray-400 mt-0.5">{f.w}×{f.h}</div>
+                    className="text-left p-2 rounded-lg border hover:border-blue-400 hover:bg-blue-50 text-xs flex flex-col gap-1 items-center"
+                    style={{ borderTopColor: f.color, borderTopWidth: 3 }}>
+                    <FurnitureTopView id={f.id} w={f.w} h={f.h} color={f.color} />
+                    <div className="font-medium text-gray-700 leading-tight text-center">{f.name}</div>
+                    <div className="text-gray-400">{f.w}×{f.h}</div>
                   </button>
                 ))}
               </div>
@@ -427,10 +498,21 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 </div>
               </div>
 
-              {/* Размеры */}
+              {/* Размеры и форма */}
               <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Размеры (мм)</h4>
-                <div className="grid grid-cols-2 gap-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Форма и размеры</h4>
+                {/* Форма */}
+                <div className="flex gap-1.5 mb-3">
+                  {([['rect','⬜ Прямоугольник'],['l','Г-образная']] as [string,string][]).map(([s,label]) => (
+                    <button key={s}
+                      onClick={() => setRoom(r => ({...r, notchW: s==='l' ? (r.notchW||800) : undefined, notchH: s==='l' ? (r.notchH||800) : undefined, notchCorner: s==='l' ? (r.notchCorner||'br') : undefined}))}
+                      className={`flex-1 text-xs py-1.5 rounded border font-medium ${(s==='l' ? !!room.notchW : !room.notchW) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Основные размеры */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   <div>
                     <label className="text-xs text-gray-400">Ширина</label>
                     <input type="number" step="100" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
@@ -448,6 +530,38 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                       onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
                   </div>
                 </div>
+                {/* Г-образный вырез */}
+                {room.notchW !== undefined && (
+                  <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
+                    <div className="text-xs text-blue-700 font-medium mb-2">Вырезанный угол</div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-xs text-gray-400">Ширина выреза</label>
+                        <input type="number" step="100" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
+                          value={room.notchW ?? 800}
+                          onChange={e => setRoom(r => ({...r, notchW: +e.target.value || r.notchW}))}
+                          onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400">Высота выреза</label>
+                        <input type="number" step="100" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
+                          value={room.notchH ?? 800}
+                          onChange={e => setRoom(r => ({...r, notchH: +e.target.value || r.notchH}))}
+                          onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-1.5">Угол выреза:</div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {([['tl','↖ Верх-лево'],['tr','Верх-право ↗'],['bl','↙ Низ-лево'],['br','Низ-право ↘']] as [RoomCorner,string][]).map(([c,label]) => (
+                        <button key={c}
+                          onClick={() => setRoom(r => ({...r, notchCorner: c}))}
+                          className={`text-xs py-1 rounded border ${(room.notchCorner??'br')===c ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Текстуры/цвет поверхностей */}

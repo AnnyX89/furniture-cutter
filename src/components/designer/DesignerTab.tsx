@@ -709,7 +709,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
           <div className="border-t p-3 bg-blue-50 flex-shrink-0">
             <div className="text-xs font-semibold text-blue-800 mb-1.5 truncate">{selectedItem.name}</div>
             {/* Размеры модуля */}
-            <div className="grid grid-cols-3 gap-1.5 mb-2">
+            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
               <div>
                 <label className="text-xs text-gray-400">Ш (мм)</label>
                 <input type="number" step="100" min="100" max="5000"
@@ -728,15 +728,15 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
-              <div>
-                <label className="text-xs text-gray-400">Выс (мм)</label>
-                <input type="number" step="50" min="100" max="3000"
-                  value={selectedItem.customH3d ?? ''}
-                  placeholder={String(FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId))}
-                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: e.target.value ? +e.target.value : undefined } : i))}
-                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
-              </div>
+            </div>
+            <div className="mb-2">
+              <label className="text-xs text-gray-400">📏 Высота (мм) — только в 3D</label>
+              <input type="number" step="50" min="100" max="3000"
+                value={selectedItem.customH3d ?? ''}
+                placeholder={`по умолчанию: ${FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId)}`}
+                onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: e.target.value ? +e.target.value : undefined } : i))}
+                onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
             </div>
             <div className="flex gap-1.5 mb-3">
               <button onClick={rotateSelected} className="flex-1 bg-white border text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">↺ Повернуть</button>

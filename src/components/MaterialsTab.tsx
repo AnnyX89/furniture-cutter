@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Material, Project } from '../types';
 import { v4 as uuid } from 'uuid';
 
-const COLORS = ['#4ade80', '#60a5fa', '#f97316', '#a78bfa', '#f472b6', '#facc15', '#2dd4bf', '#fb923c'];
+const COLORS = ['#4ade80', '#60a5fa', '#f97316', '#a78bfa', '#f472b6', '#facc15', '#2dd4bf', '#fb923c', '#e2c9a0', '#94a3b8', '#f87171', '#34d399'];
 
 const DEFAULT_MAT: Omit<Material, 'id'> = {
   name: 'ДСП 16мм белый',
@@ -13,6 +13,21 @@ const DEFAULT_MAT: Omit<Material, 'id'> = {
   color: '#60a5fa',
   hasTexture: true,
 };
+
+interface Preset { label: string; icon: string; mat: Omit<Material, 'id'>; }
+
+const PRESETS: Preset[] = [
+  { label: 'ЛДСП 16мм',   icon: '🟦', mat: { name: 'ЛДСП 16мм белый',        sheetWidth: 2750, sheetHeight: 1830, thickness: 16, price: 2000,  color: '#60a5fa', hasTexture: true  } },
+  { label: 'ЛДСП 18мм',   icon: '🟩', mat: { name: 'ЛДСП 18мм дуб сонома',   sheetWidth: 2750, sheetHeight: 1830, thickness: 18, price: 2200,  color: '#4ade80', hasTexture: true  } },
+  { label: 'МДФ 16мм',    icon: '🟧', mat: { name: 'МДФ 16мм белый',          sheetWidth: 2440, sheetHeight: 1220, thickness: 16, price: 3500,  color: '#f97316', hasTexture: false } },
+  { label: 'МДФ 18мм',    icon: '🟪', mat: { name: 'МДФ 18мм крашеный',       sheetWidth: 2440, sheetHeight: 1220, thickness: 18, price: 4000,  color: '#a78bfa', hasTexture: false } },
+  { label: 'Фанера 12мм', icon: '🟫', mat: { name: 'Фанера берёза 12мм',      sheetWidth: 2440, sheetHeight: 1220, thickness: 12, price: 1800,  color: '#e2c9a0', hasTexture: true  } },
+  { label: 'Фанера 18мм', icon: '🟤', mat: { name: 'Фанера берёза 18мм',      sheetWidth: 2440, sheetHeight: 1220, thickness: 18, price: 2400,  color: '#fb923c', hasTexture: true  } },
+  { label: 'ДВП 4мм',     icon: '⬛', mat: { name: 'ДВП 4мм (задняя стенка)', sheetWidth: 2745, sheetHeight: 1220, thickness: 4,  price: 500,   color: '#94a3b8', hasTexture: false } },
+  { label: 'Массив 20мм', icon: '🪵', mat: { name: 'Массив дуб 20мм',         sheetWidth: 2000, sheetHeight: 600,  thickness: 20, price: 8000,  color: '#f87171', hasTexture: true  } },
+  { label: 'ХДФ 8мм',     icon: '🔲', mat: { name: 'ХДФ/МДФ 8мм',            sheetWidth: 2800, sheetHeight: 2070, thickness: 8,  price: 1200,  color: '#2dd4bf', hasTexture: false } },
+  { label: 'ЛДСП 10мм',   icon: '🔷', mat: { name: 'ЛДСП 10мм тонкий',       sheetWidth: 2750, sheetHeight: 1830, thickness: 10, price: 1600,  color: '#facc15', hasTexture: true  } },
+];
 
 interface Props {
   project: Project;
@@ -83,6 +98,23 @@ export default function MaterialsTab({ project, onChange }: Props) {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
             <h3 className="font-semibold text-gray-800 mb-4">{isNew ? 'Новый материал' : 'Изменить материал'}</h3>
+
+            {/* Пресеты */}
+            <div className="mb-4">
+              <div className="text-xs text-gray-500 mb-2">Быстрый выбор:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map(p => (
+                  <button
+                    key={p.label}
+                    onClick={() => setEditing(prev => ({ ...prev!, ...p.mat }))}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                  >
+                    {p.icon} {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid gap-3">
               <div>
                 <label className="text-sm text-gray-600 block mb-1">Название</label>

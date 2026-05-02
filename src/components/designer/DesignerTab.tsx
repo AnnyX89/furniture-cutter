@@ -281,12 +281,28 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
     let ny = Math.round((my - dragging.oy) / snap) * snap;
     nx = Math.max(0, Math.min(room.width - item.w, nx));
     ny = Math.max(0, Math.min(room.height - item.h, ny));
-    // Прилипание к стенам — если ближе 150мм, встать вплотную
-    const WS = 150;
+    // Прилипание к стенам (80мм)
+    const WS = 80;
     if (nx <= WS) nx = 0;
     if (ny <= WS) ny = 0;
     if (nx >= room.width  - item.w - WS) nx = room.width  - item.w;
     if (ny >= room.height - item.h - WS) ny = room.height - item.h;
+    // Прилипание к границам ниш
+    for (const niche of niches) {
+      if (niche.wall === 'top' || niche.wall === 'bottom') {
+        const xTargets = [niche.pos, niche.pos + niche.size];
+        for (const t of xTargets) {
+          if (Math.abs(nx - t) <= WS) { nx = t; break; }
+          if (Math.abs(nx + item.w - t) <= WS) { nx = t - item.w; break; }
+        }
+      } else {
+        const yTargets = [niche.pos, niche.pos + niche.size];
+        for (const t of yTargets) {
+          if (Math.abs(ny - t) <= WS) { ny = t; break; }
+          if (Math.abs(ny + item.h - t) <= WS) { ny = t - item.h; break; }
+        }
+      }
+    }
     setItems(prev => prev.map(i => i.id === dragging.id ? { ...i, x: nx, y: ny } : i));
   }, [dragging, items, room, measureMode]);
 

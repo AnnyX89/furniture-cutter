@@ -192,13 +192,24 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-save 1s after last change
+  const latestDesignRef = useRef({ room, items, doors, windows, niches });
+  useEffect(() => { latestDesignRef.current = { room, items, doors, windows, niches }; });
+
+  // Save immediately on unmount (tab switch, navigation)
+  useEffect(() => {
+    return () => {
+      if (onSaveDesign) onSaveDesign(latestDesignRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save 1.5s after last change
   useEffect(() => {
     if (!onSaveDesign) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       onSaveDesign({ room, items, doors, windows, niches });
       setSavedAt(new Date());
-    }, 1000);
+    }, 1500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [room, items, doors, windows, niches]); // eslint-disable-line react-hooks/exhaustive-deps
   const RW = roomToScreen(room.width);

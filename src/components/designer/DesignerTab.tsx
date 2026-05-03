@@ -1051,13 +1051,15 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
               </div>
             )}
-            {selectedItem.cabinetType === 'open' && (
+            {(selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'doors' || selectedItem.cabinetType === undefined || selectedItem.cabinetType === 'sliding') && (
               <div>
-                <label className="text-xs text-gray-400">Кол-во полок (авто если пусто)</label>
-                <input type="number" min="1" max="20" step="1"
-                  value={selectedItem.shelfCount ?? ''}
-                  placeholder="авто"
-                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfCount: e.target.value ? Math.max(1,+e.target.value) : undefined} : i))}
+                <label className="text-xs text-gray-400">
+                  {selectedItem.cabinetType === 'open' ? 'Кол-во полок (авто если пусто)' : 'Полки внутри (0 = нет)'}
+                </label>
+                <input type="number" min="0" max="20" step="1"
+                  value={selectedItem.shelfCount ?? (selectedItem.cabinetType === 'open' ? '' : 0)}
+                  placeholder={selectedItem.cabinetType === 'open' ? 'авто' : '0'}
+                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfCount: e.target.value !== '' ? Math.max(0,+e.target.value) : undefined} : i))}
                   onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
               </div>

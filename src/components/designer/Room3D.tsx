@@ -419,9 +419,20 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   // default: doors
   const doors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
   const dw = iw / doors;
+  const numShelves = shelfCount ?? 0;
+  const shelfSpacing = numShelves > 0 ? itemH / (numShelves + 1) : 0;
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
-      {body}
+      <mesh position={[-iw / 2 + T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+      <mesh position={[iw / 2 - T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+      <mesh position={[0, itemH / 2 - T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+      <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+      <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, itemH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+      {numShelves > 0 && Array.from({ length: numShelves }, (_, i) => (
+        <mesh key={i} position={[0, -itemH / 2 + shelfSpacing * (i + 1), 0]}>
+          <boxGeometry args={[iw - T * 2, T, id - T]} /><meshStandardMaterial color={color} roughness={0.75} />
+        </mesh>
+      ))}
       {Array.from({ length: doors }, (_, i) => (
         <group key={i} position={[-iw / 2 + dw * (i + 0.5), 0, id / 2 + DT / 2 + 0.001]}>
           <mesh>

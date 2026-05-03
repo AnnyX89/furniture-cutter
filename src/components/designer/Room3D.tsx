@@ -654,6 +654,44 @@ function FridgeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalne
   );
 }
 
+function HoodMesh({ iw, itemH, id, ix, iy, iz, rotY }: FMProps) {
+  const T = 0.016;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh>
+        <boxGeometry args={[iw, itemH, id]} />
+        <meshStandardMaterial color="#e5e7eb" roughness={0.2} metalness={0.6} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + 0.03, id / 2 + T / 2 + 0.001]}>
+        <boxGeometry args={[iw - 0.01, 0.06, T]} />
+        <meshStandardMaterial color="#6b7280" roughness={0.5} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + 0.012, id / 2 + T + 0.002]}>
+        <boxGeometry args={[iw * 0.35, 0.008, 0.006]} />
+        <meshStandardMaterial color="#fef9c3" roughness={0.1} metalness={0.1} emissive="#fef3c7" emissiveIntensity={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function CooktopMesh({ iw, itemH, id, ix, iy, iz, rotY }: FMProps) {
+  const burnerR = Math.min(iw, id) * 0.12;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh>
+        <boxGeometry args={[iw, itemH, id]} />
+        <meshStandardMaterial color="#111827" roughness={0.05} metalness={0.3} />
+      </mesh>
+      {[-id * 0.22, id * 0.22].map((bz, i) => (
+        <mesh key={i} position={[0, itemH / 2 + 0.001, bz]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[burnerR * 0.7, burnerR, 32]} />
+          <meshStandardMaterial color="#374151" roughness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function FurnitureMesh({ item }: { item: Item3D }) {
   const heights = FURNITURE_3D_HEIGHTS[item.templateId];
   const itemH = (item.customH3d ?? heights?.h ?? 800) * MM;
@@ -681,6 +719,8 @@ function FurnitureMesh({ item }: { item: Item3D }) {
   if (tid.includes('desk') || tid.startsWith('d-table') || tid === 'k-island') return <TableMesh {...props} />;
   if (tid.startsWith('l-sofa') || tid === 'l-armchair')       return <SofaMesh {...props} />;
   if (tid.includes('bed'))                                     return <BedMesh {...props} />;
+  if (tid === 'k-hood') return <HoodMesh {...props} />;
+  if (tid === 'k-cooktop-2') return <CooktopMesh {...props} />;
   if (tid.startsWith('k-base') || tid === 'k-sink' || tid === 'k-stove' || tid === 'k-dishwasher' || tid === 'k-corner') return <KitchenBaseMesh {...props} />;
   if (tid === 'k-fridge') return <FridgeMesh {...props} />;
 

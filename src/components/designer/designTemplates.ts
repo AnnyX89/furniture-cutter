@@ -275,6 +275,31 @@ function officeFull(r: RoomDims): PlacedItem[] {
   ];
 }
 
+// ── поворот раскладки к нужной стене ─────────────────────────────────────────
+// Все шаблоны по умолчанию прижаты к верхней стене (y=0, h=глубина).
+// Эта функция трансформирует координаты к любой из 4 стен.
+export type WallSide = 'top' | 'bottom' | 'left' | 'right';
+
+export function rotateLayoutToWall(items: PlacedItem[], room: RoomDims, wall: WallSide): PlacedItem[] {
+  if (wall === 'top') return items;
+  return items.map(it => {
+    let { x, y, w, h } = it;
+    if (wall === 'bottom') {
+      // Зеркально по Y
+      y = room.height - it.y - it.h;
+    } else if (wall === 'left') {
+      // Поворот 90° по часовой: top→left
+      // (x, y, w, h) → (y, x, h, w)
+      x = it.y; y = it.x; w = it.h; h = it.w;
+    } else if (wall === 'right') {
+      // Поворот 90° против часовой: top→right
+      // (x, y, w, h) → (W - y - h, x, h, w)
+      x = room.width - it.y - it.h; y = it.x; w = it.h; h = it.w;
+    }
+    return { ...it, x: Math.round(Math.max(0, x)), y: Math.round(Math.max(0, y)), w: Math.round(w), h: Math.round(h) };
+  });
+}
+
 // ── стоимость по типам ────────────────────────────────────────────────────────
 export function kitchenCost(items: PlacedItem[]) {
   const baseCount = items.filter(i => i.templateId.startsWith('k-base') || i.templateId === 'k-corner').length;

@@ -58,6 +58,7 @@ type RoomCorner = 'tr' | 'br' | 'bl' | 'tl';
 interface Room {
   width: number;
   height: number;
+  ceilingHeight: number;
   wallColor: string;
   floorColor: string;
   ceilingColor: string;
@@ -81,7 +82,7 @@ interface Niche {
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 
-export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding';
+export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven';
 
 interface PlacedItem {
   id: string;
@@ -97,7 +98,13 @@ interface PlacedItem {
   shape?: string;
   icon: string;
   customH3d?: number;
+  customMountedAt?: number;
   cabinetType?: CabinetType;
+  doorCount?: number;
+  drawerCount?: number;
+  shelfCount?: number;
+  ovenHeight?: number;
+  countertopColor?: string;
 }
 
 interface DesignerTabProps {
@@ -106,6 +113,20 @@ interface DesignerTabProps {
   project?: Project;
   onSaveDesign?: (design: RoomDesign) => void;
 }
+
+const COUNTERTOP_PRESETS = [
+  { color: '#f5f5f0', name: 'Белый кварц' },
+  { color: '#e8ddd0', name: 'Бежевый кварц' },
+  { color: '#d0c8c0', name: 'Светлый мрамор' },
+  { color: '#a89880', name: 'Дерево светлое' },
+  { color: '#6b5040', name: 'Дерево тёмное' },
+  { color: '#706860', name: 'Тёмный гранит' },
+  { color: '#1a1a1a', name: 'Чёрный гранит' },
+  { color: '#c4c2c0', name: 'Нержавейка' },
+  { color: '#9c9490', name: 'Серый бетон' },
+  { color: '#6b7280', name: 'Стандартный' },
+];
+const KITCHEN_BASE_IDS = new Set(['k-sink','k-stove','k-dishwasher','k-corner']);
 
 const SCALE = 0.12;
 const GRID = 100;
@@ -198,7 +219,7 @@ function ColorPickerPopup({ color, onChange }: { color: string; onChange: (c: st
 export default function DesignerTab({ onSendToCutting, firstMaterialId = '', project, onSaveDesign }: DesignerTabProps) {
   const saved = project?.design;
   const [room, setRoom] = useState<Room>({
-    width: 4000, height: 5000,
+    width: 4000, height: 5000, ceilingHeight: 2500,
     wallColor: '#f5f0eb', floorColor: '#c8a97e', ceilingColor: '#ffffff',
     floorTexture: 'solid', wallTexture: 'solid', ceilTexture: 'solid',
     ...saved?.room,
@@ -215,6 +236,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
   const applianceResults = searchAppliances(applianceQuery).slice(0, 12);
   const [dragging, setDragging] = useState<{id:string; ox:number; oy:number} | null>(null);
   const [view, setView] = useState<'2d' | '3d'>('2d');
+  const [pending3d, setPending3d] = useState<FurnitureTemplate | null>(null);
   const [activeScheme, setActiveScheme] = useState<string | null>(null);
   const [recentColors, setRecentColors] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('fc_recent_colors') ?? '[]'); } catch { return []; }
@@ -463,10 +485,20 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   </button>
                 ))}
               </div>
+              {view === '3d' && (
+                <div className="px-2 py-1.5 text-xs text-blue-600 bg-blue-50 border-b border-blue-100 text-center">
+                  Нажмите на мебель → кликните на пол в 3D
+                </div>
+              )}
               <div className="px-2 pb-2 grid grid-cols-2 gap-1">
                 {FURNITURE.filter(f => f.category === activeCategory).map(f => (
-                  <button key={f.id} onClick={() => addFurniture(f)}
-                    className="text-left p-2 rounded-lg border hover:border-blue-400 hover:bg-blue-50 text-xs flex flex-col gap-1 items-center"
+                  <button key={f.id}
+                    onClick={() => view === '3d' ? setPending3d(prev => prev?.id === f.id ? null : f) : addFurniture(f)}
+                    className={`text-left p-2 rounded-lg border text-xs flex flex-col gap-1 items-center transition-colors ${
+                      pending3d?.id === f.id
+                        ? 'border-blue-500 bg-blue-100 ring-1 ring-blue-400'
+                        : 'hover:border-blue-400 hover:bg-blue-50'
+                    }`}
                     style={{ borderTopColor: f.color, borderTopWidth: 3 }}>
                     <FurnitureTopView id={f.id} w={f.w} h={f.h} color={f.color} />
                     <div className="font-medium text-gray-700 leading-tight text-center">{f.name}</div>
@@ -527,6 +559,14 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                       value={room.height}
                       onChange={e => setRoom(r => ({...r, height: +e.target.value || r.height}))}
                       onBlur={e => setRoom(r => ({...r, height: Math.max(500, +e.target.value || r.height)}))}
+                      onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-400">↕ Высота потолка</label>
+                    <input type="number" step="100" min="1800" max="6000" className="w-full border rounded px-2 py-1 text-sm mt-0.5"
+                      value={room.ceilingHeight}
+                      onChange={e => setRoom(r => ({...r, ceilingHeight: +e.target.value || r.ceilingHeight}))}
+                      onBlur={e => setRoom(r => ({...r, ceilingHeight: Math.max(1800, +e.target.value || r.ceilingHeight)}))}
                       onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }} />
                   </div>
                 </div>
@@ -847,7 +887,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
 
         {/* Панель выбранного предмета */}
         {selectedItem && (
-          <div className="border-t p-3 bg-blue-50 flex-shrink-0">
+          <div className="border-t p-3 bg-blue-50 flex-shrink-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
             <div className="text-xs font-semibold text-blue-800 mb-1.5 truncate">{selectedItem.name}</div>
             {/* Размеры модуля */}
             <div className="grid grid-cols-2 gap-1.5 mb-1.5">
@@ -869,16 +909,79 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
+              <div>
+                <label className="text-xs text-gray-400">X — от лев. стены</label>
+                <input type="number" step="10" min="0"
+                  value={selectedItem.x}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, x: Math.max(0, Math.min(room.width - i.w, +e.target.value)) } : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Y — от верх. стены</label>
+                <input type="number" step="10" min="0"
+                  value={selectedItem.y}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, y: Math.max(0, Math.min(room.height - i.h, +e.target.value)) } : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+              </div>
             </div>
             <div className="mb-2">
               <label className="text-xs text-gray-400">📏 Высота (мм) — только в 3D</label>
-              <input type="number" step="50" min="100" max="3000"
-                value={selectedItem.customH3d ?? ''}
-                placeholder={`по умолчанию: ${FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId)}`}
-                onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: e.target.value ? +e.target.value : undefined } : i))}
-                onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+              <div className="flex gap-1.5 mt-0.5">
+                <input type="number" step="50" min="100" max="6000"
+                  value={selectedItem.customH3d ?? ''}
+                  placeholder={`${FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId)}`}
+                  onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: e.target.value ? +e.target.value : undefined } : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="flex-1 border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+                {(FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 0) > 0 && (
+                  <button
+                    title={`Растянуть до потолка (${room.ceilingHeight - (FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 0)} мм)`}
+                    onClick={() => {
+                      const mountedAt = FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 0;
+                      const h = room.ceilingHeight - mountedAt;
+                      if (h > 0) setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: h } : i));
+                    }}
+                    className="flex-shrink-0 text-xs px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium whitespace-nowrap"
+                  >
+                    ↑ Потолок
+                  </button>
+                )}
+                {(FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 0) === 0 && (
+                  <button
+                    title={`Растянуть до потолка (${room.ceilingHeight} мм)`}
+                    onClick={() => setItems(p => p.map(i => i.id === selected ? { ...i, customH3d: room.ceilingHeight } : i))}
+                    className="flex-shrink-0 text-xs px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium whitespace-nowrap"
+                  >
+                    ↑ Потолок
+                  </button>
+                )}
+              </div>
             </div>
+            {/* Высота подвески — только для навесных шкафов */}
+            {(FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 0) > 0 && (
+              <div className="mb-2">
+                <label className="text-xs text-gray-400">📍 Высота подвески (мм от пола)</label>
+                <div className="flex gap-1.5 mt-0.5">
+                  <input type="number" step="50" min="0" max="6000"
+                    value={selectedItem.customMountedAt ?? (FURNITURE_3D_HEIGHTS[selectedItem.templateId]?.mountedAt ?? 1320)}
+                    onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, customMountedAt: +e.target.value } : i))}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                    className="flex-1 border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
+                  <button
+                    title="Прижать верх шкафа к потолку"
+                    onClick={() => {
+                      const h = selectedItem.customH3d ?? FURNITURE_3D_HEIGHTS_DEFAULT(selectedItem.templateId);
+                      setItems(p => p.map(i => i.id === selected ? { ...i, customMountedAt: room.ceilingHeight - h } : i));
+                    }}
+                    className="flex-shrink-0 text-xs px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium whitespace-nowrap"
+                  >
+                    ↑ К потолку
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex gap-1.5 mb-3">
               <button onClick={rotateSelected} className="flex-1 bg-white border text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">↺ Повернуть</button>
               <button onClick={removeSelected} className="flex-1 bg-red-50 border border-red-200 text-red-600 text-xs py-1.5 rounded hover:bg-red-100">✕ Удалить</button>
@@ -926,8 +1029,8 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             {/* Тип наполнения */}
             <div>
               <div className="text-xs text-gray-500 mb-1">Тип наполнения (3D)</div>
-              <div className="grid grid-cols-4 gap-1">
-                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
+              <div className="grid grid-cols-5 gap-1">
+                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе'],['oven','🔥','База']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
                   <button key={type}
                     onClick={() => setItems(p => p.map(i => i.id===selected ? {...i,cabinetType:type} : i))}
                     className={`text-xs py-1 rounded border leading-tight flex flex-col items-center gap-0.5 ${(selectedItem.cabinetType??'doors')===type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
@@ -936,6 +1039,73 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 ))}
               </div>
             </div>
+            {/* Количество дверей / ящиков */}
+            {(selectedItem.cabinetType === 'doors' || selectedItem.cabinetType === undefined || selectedItem.cabinetType === 'sliding') && (
+              <div>
+                <label className="text-xs text-gray-400">Кол-во дверей (авто если пусто)</label>
+                <input type="number" min="1" max="20" step="1"
+                  value={selectedItem.doorCount ?? ''}
+                  placeholder="авто"
+                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, doorCount: e.target.value ? Math.max(1,+e.target.value) : undefined} : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+              </div>
+            )}
+            {selectedItem.cabinetType === 'open' && (
+              <div>
+                <label className="text-xs text-gray-400">Кол-во полок (авто если пусто)</label>
+                <input type="number" min="1" max="20" step="1"
+                  value={selectedItem.shelfCount ?? ''}
+                  placeholder="авто"
+                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfCount: e.target.value ? Math.max(1,+e.target.value) : undefined} : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+              </div>
+            )}
+            {(selectedItem.cabinetType === 'drawers' || selectedItem.cabinetType === 'oven') && (
+              <div>
+                <label className="text-xs text-gray-400">{selectedItem.cabinetType === 'oven' ? 'Ящиков снизу (авто если пусто)' : 'Кол-во ящиков (авто если пусто)'}</label>
+                <input type="number" min="1" max="20" step="1"
+                  value={selectedItem.drawerCount ?? ''}
+                  placeholder="авто"
+                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, drawerCount: e.target.value ? Math.max(1,+e.target.value) : undefined} : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+              </div>
+            )}
+            {selectedItem.cabinetType === 'oven' && (
+              <div>
+                <label className="text-xs text-gray-400">Размер ниши под духовку (мм, авто если пусто)</label>
+                <input type="number" min="100" max="2000" step="50"
+                  value={selectedItem.ovenHeight ?? ''}
+                  placeholder="авто"
+                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, ovenHeight: e.target.value ? Math.max(100,+e.target.value) : undefined} : i))}
+                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                  className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+              </div>
+            )}
+            {/* Столешница — только для кухонных тумб */}
+            {(selectedItem.templateId.startsWith('k-base') || KITCHEN_BASE_IDS.has(selectedItem.templateId)) && (
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Столешница</div>
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {COUNTERTOP_PRESETS.map(p => (
+                    <button key={p.color} title={p.name}
+                      onClick={() => setItems(prev => prev.map(i => i.id===selected ? {...i, countertopColor: p.color} : i))}
+                      className={`w-6 h-6 rounded border-2 flex-shrink-0 transition-transform ${(selectedItem.countertopColor ?? '#6b7280') === p.color ? 'border-blue-500 scale-110 ring-1 ring-blue-300' : 'border-gray-200 hover:border-gray-400'}`}
+                      style={{ background: p.color }}
+                    />
+                  ))}
+                  <ColorPickerPopup
+                    color={selectedItem.countertopColor ?? '#6b7280'}
+                    onChange={c => setItems(prev => prev.map(i => i.id===selected ? {...i, countertopColor: c} : i))}
+                  />
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  {COUNTERTOP_PRESETS.find(p => p.color === (selectedItem.countertopColor ?? '#6b7280'))?.name ?? 'Свой цвет'}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -963,6 +1133,15 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
               onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
               className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
               title="Длина комнаты (мм)" />
+            <span className="text-gray-400 mr-2">мм</span>
+            <span className="text-gray-400 ml-1">↕</span>
+            <input type="number" step="100" min="1800" max="6000"
+              value={room.ceilingHeight}
+              onChange={e => setRoom(r => ({...r, ceilingHeight: +e.target.value || r.ceilingHeight}))}
+              onBlur={e => setRoom(r => ({...r, ceilingHeight: Math.max(1800, +e.target.value || r.ceilingHeight)}))}
+              onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+              className="w-20 border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400"
+              title="Высота потолка (мм)" />
             <span className="text-gray-400 mr-2">мм</span>
           </div>
 
@@ -1028,7 +1207,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
 
           {/* 2D / 3D */}
           <div className="flex rounded-lg border bg-white overflow-hidden">
-            <button onClick={() => setView('2d')}
+            <button onClick={() => { setView('2d'); setPending3d(null); }}
               className={`px-3 py-1.5 text-xs font-medium ${view==='2d' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
               📐 2D
             </button>
@@ -1041,13 +1220,37 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
 
         {/* 3D */}
         {view === '3d' && (
-          <div className="flex-1 relative">
+          <div className="flex-1 relative" onKeyDown={e => e.key === 'Escape' && setPending3d(null)} tabIndex={-1}>
+            {pending3d && (
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-blue-600 text-white text-xs px-3 py-1.5 rounded-full shadow-lg pointer-events-none">
+                📦 {pending3d.name} — кликните на пол · Esc — отмена
+              </div>
+            )}
             <Suspense fallback={
               <div className="flex items-center justify-center h-full bg-gray-900 text-white text-sm">
                 <div className="text-center"><div className="text-3xl mb-3 animate-pulse">🧊</div><div>Загрузка 3D...</div></div>
               </div>
             }>
-              <Room3D room={room} items={items} doors={doors} windows={windows} niches={niches} />
+              <Room3D
+                room={room} items={items} doors={doors} windows={windows} niches={niches}
+                ceilingHeight={room.ceilingHeight}
+                pendingItem={pending3d ? { w: pending3d.w, h: pending3d.h, color: pending3d.color, templateId: pending3d.id } : undefined}
+                onFloorClick={(xMm, zMm) => {
+                  if (!pending3d) return;
+                  const item: PlacedItem = {
+                    id: uuid(), templateId: pending3d.id, name: pending3d.name,
+                    x: Math.max(0, Math.min(room.width  - pending3d.w, Math.round(xMm / GRID) * GRID - Math.round(pending3d.w / 2 / GRID) * GRID)),
+                    y: Math.max(0, Math.min(room.height - pending3d.h, Math.round(zMm / GRID) * GRID - Math.round(pending3d.h / 2 / GRID) * GRID)),
+                    w: pending3d.w, h: pending3d.h, rotation: 0,
+                    color: pending3d.color, facadeStyle: 'matte', shape: pending3d.shape, icon: pending3d.icon,
+                  };
+                  setItems(prev => [...prev, item]);
+                  setSelected(item.id);
+                  setSideTab('furniture');
+                }}
+                selectedItemId={selected ?? undefined}
+                onSelectItem={id => setSelected(id ?? null)}
+              />
             </Suspense>
           </div>
         )}

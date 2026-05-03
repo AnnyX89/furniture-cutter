@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { generateVariants, detectRoomType } from './designTemplates';
-import type { PlacedItem } from './designTemplates';
+import { generateVariants, detectRoomType, rotateLayoutToWall } from './designTemplates';
+import type { PlacedItem, WallSide } from './designTemplates';
 
 const STORAGE_KEY = 'fc_openai_key';
 
@@ -44,6 +44,11 @@ const TOOLS = [
                    'l-tv','l-corner','l-cinema','l-open',
                    'h-min','h-full','o-basic','o-full'],
             description: 'ID варианта расстановки',
+          },
+          wall: {
+            type: 'string',
+            enum: ['top','bottom','left','right'],
+            description: 'Стена для прижатия мебели: top=верхняя, bottom=нижняя, left=левая, right=правая. Обязательно укажи по пожеланию клиента.',
           },
           wall_color:    { type: 'string', description: 'Hex цвет стен, напр. #f5f0e8' },
           floor_color:   { type: 'string', description: 'Hex цвет пола' },
@@ -137,7 +142,8 @@ export default function AIDesignAssistant({ room, items, projectName, onApplyIte
 Инструкция:
 1. Коротко объясни своё решение (1–2 предложения)
 2. Вызови нужные функции для применения изменений
-3. Отвечай только на русском языке`;
+3. В параметре \`wall\` функции apply_design_variant ОБЯЗАТЕЛЬНО укажи стену по пожеланию клиента (top=верхняя, bottom=нижняя, left=левая, right=правая). По умолчанию используй top.
+4. Отвечай только на русском языке`;
   }
 
   async function sendMessage() {
@@ -192,7 +198,9 @@ export default function AIDesignAssistant({ room, items, projectName, onApplyIte
             const variants = generateVariants(projectName, room);
             const variant = variants.find(v => v.id === args.variant_id);
             if (variant) {
-              onApplyItems(variant.items);
+              const wall = (args.wall as WallSide) ?? 'top';
+              const placed = rotateLayoutToWall(variant.items, room, wall);
+              onApplyItems(placed);
               if (!reply) reply = `Применил вариант «${variant.name}» ✅`;
             }
             if (args.wall_color || args.floor_color || args.ceiling_color) {

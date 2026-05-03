@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -193,7 +193,7 @@ function buildCanvasTex(id: string, color: string): THREE.CanvasTexture | null {
   return tex;
 }
 
-type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding';
+type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven';
 
 interface Item3D {
   id: string;
@@ -207,7 +207,15 @@ interface Item3D {
   facadeStyle: FacadeStyle;
   customH3d?: number;
   cabinetType?: CabinetType;
+  doorCount?: number;
+  drawerCount?: number;
+  shelfCount?: number;
+  ovenHeight?: number;
+  countertopColor?: string;
+  customMountedAt?: number;
 }
+
+type RoomCorner = 'tr' | 'br' | 'bl' | 'tl';
 
 interface RoomData {
   width: number;
@@ -218,11 +226,18 @@ interface RoomData {
   floorTexture?: string;
   wallTexture?: string;
   ceilTexture?: string;
+  notchW?: number;
+  notchH?: number;
+  notchCorner?: RoomCorner;
 }
 
 interface Door3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 interface Window3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 interface Niche3D { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; depth: number; }
+
+interface PendingItem3D {
+  w: number; h: number; color: string; templateId: string;
+}
 
 interface Room3DProps {
   room: RoomData;
@@ -231,6 +246,10 @@ interface Room3DProps {
   windows?: Window3D[];
   niches?: Niche3D[];
   ceilingHeight?: number;
+  pendingItem?: PendingItem3D;
+  onFloorClick?: (xMm: number, zMm: number) => void;
+  selectedItemId?: string;
+  onSelectItem?: (id: string | null) => void;
 }
 
 interface WallHole {
@@ -321,9 +340,14 @@ interface FMProps {
   rotY: number; color: string;
   roughness: number; metalness: number;
   cabinetType?: CabinetType;
+  doorCount?: number;
+  drawerCount?: number;
+  shelfCount?: number;
+  ovenHeight?: number;
+  countertopColor?: string;
 }
 
-function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors' }: FMProps) {
+function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount }: FMProps) {
   const DT = 0.018;
   const g = 0.002;
   const T = 0.018;
@@ -336,7 +360,7 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   );
 
   if (cabinetType === 'open') {
-    const shelves = Math.max(2, Math.floor(itemH / 0.35));
+    const shelves = shelfCount ?? Math.max(2, Math.floor(itemH / 0.35));
     const spacing = itemH / (shelves + 1);
     return (
       <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
@@ -355,7 +379,7 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   }
 
   if (cabinetType === 'drawers') {
-    const drawers = Math.max(2, Math.floor(itemH / 0.22));
+    const drawers = drawerCount ?? Math.max(2, Math.floor(itemH / 0.22));
     const dh = itemH / drawers;
     return (
       <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
@@ -393,7 +417,7 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   }
 
   // default: doors
-  const doors = Math.max(1, Math.round(iw / 0.55));
+  const doors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
   const dw = iw / doors;
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
@@ -414,8 +438,8 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   );
 }
 
-function BookcaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color }: FMProps) {
-  const shelves = Math.max(2, Math.floor(itemH / 0.35));
+function BookcaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, shelfCount }: FMProps) {
+  const shelves = shelfCount ?? Math.max(2, Math.floor(itemH / 0.35));
   const spacing = itemH / (shelves + 1);
   const T = 0.018;
   return (
@@ -514,7 +538,7 @@ function DresserMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metaln
   );
 }
 
-function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors' }: FMProps) {
+function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount: _s, ovenHeight, countertopColor = '#6b7280' }: FMProps) { void _s;
   const ctT = 0.04;
   const bodyH = itemH - ctT;
   const ovh = 0.02;
@@ -522,7 +546,7 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
 
   let facade: React.ReactNode;
   if (cabinetType === 'drawers') {
-    const drawers = Math.max(2, Math.floor(bodyH / 0.18));
+    const drawers = drawerCount ?? Math.max(2, Math.floor(bodyH / 0.18));
     const dh = bodyH / drawers;
     facade = Array.from({ length: drawers }, (_, i) => (
       <group key={i} position={[0, -itemH / 2 + dh * (i + 0.5), id / 2 + 0.01]}>
@@ -532,12 +556,48 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
     ));
   } else if (cabinetType === 'open') {
     facade = null;
-  } else {
+  } else if (cabinetType === 'oven') {
+    // Bottom: 1–N drawers; top: open oven cavity
+    const numDrawers = drawerCount ?? 1;
+    const ovenH_mm = ovenHeight ? ovenHeight * MM : undefined;
+    const drawerZoneH = ovenH_mm
+      ? Math.max(0.05, bodyH - ovenH_mm)
+      : Math.min(bodyH * 0.28, numDrawers * 0.22);
+    const dh = drawerZoneH / numDrawers;
+    const ovenH = ovenH_mm ?? (bodyH - drawerZoneH);
     facade = (
-      <mesh position={[0, -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
-        <boxGeometry args={[iw - 0.004, bodyH - 0.08, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
-      </mesh>
+      <>
+        {/* Drawer(s) at the bottom */}
+        {Array.from({ length: numDrawers }, (_, i) => (
+          <group key={i} position={[0, -itemH / 2 + dh * (i + 0.5), id / 2 + 0.01]}>
+            <mesh><boxGeometry args={[iw - g * 2, dh - g * 2, 0.016]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+            <mesh position={[0, 0, 0.013]}><boxGeometry args={[iw * 0.25, 0.01, 0.008]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} /></mesh>
+          </group>
+        ))}
+        {/* Oven cavity face — flush with drawer fronts */}
+        <mesh position={[0, -itemH / 2 + drawerZoneH + ovenH / 2, id / 2 + 0.01]}>
+          <boxGeometry args={[iw - g * 2, ovenH - g * 2, 0.016]} />
+          <meshStandardMaterial color="#111111" roughness={0.9} />
+        </mesh>
+      </>
     );
+  } else {
+    // doors — split into panels
+    const numDoors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
+    const dw = iw / numDoors;
+    const DT = 0.016;
+    facade = Array.from({ length: numDoors }, (_, i) => (
+      <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
+        <mesh>
+          <boxGeometry args={[dw - g * 2, bodyH - 0.08, DT]} />
+          <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+        </mesh>
+        <mesh position={[i < numDoors / 2 ? dw * 0.28 : -dw * 0.28, 0, DT / 2 + 0.005]}>
+          <boxGeometry args={[0.008, bodyH * 0.38, 0.006]} />
+          <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+        </mesh>
+      </group>
+    ));
   }
 
   return (
@@ -546,7 +606,7 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
         <boxGeometry args={[iw, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.75} />
       </mesh>
       <mesh position={[0, -itemH / 2 + bodyH + ctT / 2, 0]}>
-        <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color="#6b7280" roughness={0.35} metalness={0.15} />
+        <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color={countertopColor} roughness={0.3} metalness={countertopColor === '#c4c2c0' ? 0.7 : 0.08} />
       </mesh>
       {facade}
     </group>
@@ -586,17 +646,22 @@ function FridgeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalne
 function FurnitureMesh({ item }: { item: Item3D }) {
   const heights = FURNITURE_3D_HEIGHTS[item.templateId];
   const itemH = (item.customH3d ?? heights?.h ?? 800) * MM;
-  const mountedAt = (heights?.mountedAt ?? 0) * MM;
+  const mountedAt = (item.customMountedAt ?? heights?.mountedAt ?? 0) * MM;
   const facade = FACADE_OPTIONS.find(f => f.id === item.facadeStyle) ?? FACADE_OPTIONS[0];
 
+  // item.w/h already swapped when user rotates in 2D — use them for center position.
+  // For 3D geometry, un-swap so rotation in 3D matches 2D footprint exactly.
   const iw = item.w * MM;
   const id = item.h * MM;
   const ix = item.x * MM + iw / 2;
   const iz = item.y * MM + id / 2;
   const iy = mountedAt + itemH / 2;
   const rotY = -item.rotation * (Math.PI / 180);
+  const rot90 = item.rotation % 180 !== 0;
+  const geoW = rot90 ? id : iw;
+  const geoD = rot90 ? iw : id;
 
-  const props: FMProps = { iw, itemH, id, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness, cabinetType: item.cabinetType };
+  const props: FMProps = { iw: geoW, itemH, id: geoD, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness, cabinetType: item.cabinetType, doorCount: item.doorCount, drawerCount: item.drawerCount, shelfCount: item.shelfCount, ovenHeight: item.ovenHeight, countertopColor: item.countertopColor };
   const tid = item.templateId;
 
   if (tid.includes('bookshelf') || tid.includes('bookcase'))  return <BookcaseMesh {...props} />;
@@ -610,7 +675,7 @@ function FurnitureMesh({ item }: { item: Item3D }) {
 
   return (
     <mesh position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
-      <boxGeometry args={[iw, itemH, id]} />
+      <boxGeometry args={[geoW, itemH, geoD]} />
       <meshStandardMaterial color={item.color} roughness={facade.roughness} metalness={facade.metalness} />
     </mesh>
   );
@@ -670,7 +735,62 @@ function NicheMesh({ niche, room, H }: { niche: Niche3D; room: RoomData; H: numb
   );
 }
 
-function RoomScene({ room, items, doors = [], windows = [], niches = [], ceilingHeight = 2500 }: Room3DProps) {
+const GRID_MM = 100;
+
+function FloorPlacer({ W, D, pendingItem, onFloorClick }: {
+  W: number; D: number;
+  pendingItem: PendingItem3D;
+  onFloorClick: (xMm: number, zMm: number) => void;
+}) {
+  const [ghostPos, setGhostPos] = useState<[number,number,number] | null>(null);
+  const heights = FURNITURE_3D_HEIGHTS[pendingItem.templateId];
+  const itemH = (heights?.h ?? 800) * MM;
+  const mountedAt = (heights?.mountedAt ?? 0) * MM;
+  const iw = pendingItem.w * MM;
+  const id = pendingItem.h * MM;
+
+  return (
+    <>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[W / 2, 0.003, D / 2]}
+        onPointerMove={e => {
+          e.stopPropagation();
+          const x = Math.max(iw / 2, Math.min(W - iw / 2, e.point.x));
+          const z = Math.max(id / 2, Math.min(D - id / 2, e.point.z));
+          setGhostPos([x, mountedAt + itemH / 2, z]);
+        }}
+        onPointerLeave={() => setGhostPos(null)}
+        onPointerDown={e => {
+          e.stopPropagation();
+          const rawX = Math.max(iw / 2, Math.min(W - iw / 2, e.point.x));
+          const rawZ = Math.max(id / 2, Math.min(D - id / 2, e.point.z));
+          const xMm = Math.round(rawX / MM / GRID_MM) * GRID_MM;
+          const zMm = Math.round(rawZ / MM / GRID_MM) * GRID_MM;
+          onFloorClick(xMm, zMm);
+        }}
+      >
+        <planeGeometry args={[W, D]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {ghostPos && (
+        <group position={ghostPos}>
+          <mesh>
+            <boxGeometry args={[iw, itemH, id]} />
+            <meshStandardMaterial color={pendingItem.color} transparent opacity={0.5} />
+          </mesh>
+          {/* Обводка */}
+          <lineSegments>
+            <edgesGeometry args={[new THREE.BoxGeometry(iw, itemH, id)]} />
+            <lineBasicMaterial color="#2563eb" />
+          </lineSegments>
+        </group>
+      )}
+    </>
+  );
+}
+
+function RoomScene({ room, items, doors = [], windows = [], niches = [], ceilingHeight = 2500, pendingItem, onFloorClick, selectedItemId, onSelectItem }: Room3DProps) {
   const W = room.width  * MM;
   const D = room.height * MM;
   const H = ceilingHeight * MM;
@@ -744,6 +864,105 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
     return { tex, roughness: preset.roughness, metalness: preset.metalness };
   }, [room.ceilTexture, room.ceilingColor, W, D]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Build L-shape floor/ceiling geometry when notch is set.
+  // Rotation [-PI/2, 0, 0] maps shape: X→world X, Y→world -Z+D/2
+  // So shape Y=+D/2 → world Z=0 (2D "top"), shape Y=-D/2 → world Z=D (2D "bottom").
+  const floorGeo = useMemo(() => {
+    const nW = (room.notchW ?? 0) * MM;
+    const nH = (room.notchH ?? 0) * MM;
+    if (!nW || !nH) return null;
+    const corner = room.notchCorner ?? 'br';
+    const shape = new THREE.Shape();
+    // 'br' notch = 2D bottom-right = world X∈[W-nW,W] Z∈[D-nH,D]
+    //            = shape X∈[W/2-nW,W/2], Y∈[-D/2,-D/2+nH]
+    if (corner === 'br') {
+      shape.moveTo(-W/2,-D/2); shape.lineTo(W/2-nW,-D/2);
+      shape.lineTo(W/2-nW,-D/2+nH); shape.lineTo(W/2,-D/2+nH);
+      shape.lineTo(W/2,D/2); shape.lineTo(-W/2,D/2);
+    } else if (corner === 'bl') {
+      // 'bl' = 2D bottom-left = shape X∈[-W/2,-W/2+nW], Y∈[-D/2,-D/2+nH]
+      shape.moveTo(-W/2+nW,-D/2); shape.lineTo(W/2,-D/2);
+      shape.lineTo(W/2,D/2); shape.lineTo(-W/2,D/2);
+      shape.lineTo(-W/2,-D/2+nH); shape.lineTo(-W/2+nW,-D/2+nH);
+    } else if (corner === 'tr') {
+      // 'tr' = 2D top-right = shape X∈[W/2-nW,W/2], Y∈[D/2-nH,D/2]
+      shape.moveTo(-W/2,-D/2); shape.lineTo(W/2,-D/2);
+      shape.lineTo(W/2,D/2-nH); shape.lineTo(W/2-nW,D/2-nH);
+      shape.lineTo(W/2-nW,D/2); shape.lineTo(-W/2,D/2);
+    } else { // tl
+      // 'tl' = 2D top-left = shape X∈[-W/2,-W/2+nW], Y∈[D/2-nH,D/2]
+      shape.moveTo(-W/2,-D/2); shape.lineTo(W/2,-D/2);
+      shape.lineTo(W/2,D/2); shape.lineTo(-W/2+nW,D/2);
+      shape.lineTo(-W/2+nW,D/2-nH); shape.lineTo(-W/2,D/2-nH);
+    }
+    shape.closePath();
+    return new THREE.ShapeGeometry(shape);
+  }, [W, D, room.notchW, room.notchH, room.notchCorner]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Compute wall segments for L-shaped rooms
+  const wallSegments = useMemo(() => {
+    const nW = (room.notchW ?? 0) * MM;
+    const nH = (room.notchH ?? 0) * MM;
+    const corner = room.notchCorner ?? 'br';
+
+    type WallSeg = {
+      pos: [number,number,number]; rot?: [number,number,number];
+      planeW: number; planeH: number;
+      nx: number; ny: number; nz: number;
+      side: 'H'|'V'; holes: WallHole[];
+    };
+
+    if (!nW || !nH) {
+      return [
+        { pos:[W/2,H/2,0]  as [number,number,number], planeW:W, planeH:H, nx:0,ny:0,nz:-1, side:'H' as const, holes:wallHoles.top },
+        { pos:[W/2,H/2,D]  as [number,number,number], planeW:W, planeH:H, nx:0,ny:0,nz:1,  side:'H' as const, holes:wallHoles.bottom },
+        { pos:[0,H/2,D/2]  as [number,number,number], rot:[0,Math.PI/2,0] as [number,number,number], planeW:D, planeH:H, nx:-1,ny:0,nz:0, side:'V' as const, holes:wallHoles.left },
+        { pos:[W,H/2,D/2]  as [number,number,number], rot:[0,Math.PI/2,0] as [number,number,number], planeW:D, planeH:H, nx:1, ny:0,nz:0, side:'V' as const, holes:wallHoles.right },
+      ] as WallSeg[];
+    }
+
+    const segs: WallSeg[] = [];
+
+    if (corner === 'br') {
+      // back (z=0): full width
+      segs.push({ pos:[W/2,H/2,0], planeW:W, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:wallHoles.top });
+      // front (z=D): shortened x=[0..W-nW]
+      segs.push({ pos:[(W-nW)/2,H/2,D], planeW:W-nW, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:wallHoles.bottom });
+      // left (x=0): full depth
+      segs.push({ pos:[0,H/2,D/2], rot:[0,Math.PI/2,0], planeW:D, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:wallHoles.left });
+      // right (x=W): shortened z=[0..D-nH]
+      segs.push({ pos:[W,H/2,(D-nH)/2], rot:[0,Math.PI/2,0], planeW:D-nH, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:wallHoles.right });
+      // inner step: z=D-nH, x=[W-nW..W] — нормаль в сторону ниши (+Z), чтоб из комнаты была непрозрачной
+      segs.push({ pos:[W-nW/2,H/2,D-nH], planeW:nW, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:[] });
+      // inner step: x=W-nW, z=[D-nH..D]
+      segs.push({ pos:[W-nW,H/2,D-nH/2], rot:[0,Math.PI/2,0], planeW:nH, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:[] });
+    } else if (corner === 'bl') {
+      segs.push({ pos:[W/2,H/2,0], planeW:W, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:wallHoles.top });
+      segs.push({ pos:[nW+(W-nW)/2,H/2,D], planeW:W-nW, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:wallHoles.bottom });
+      segs.push({ pos:[0,H/2,(D-nH)/2], rot:[0,Math.PI/2,0], planeW:D-nH, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:wallHoles.left });
+      segs.push({ pos:[W,H/2,D/2], rot:[0,Math.PI/2,0], planeW:D, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:wallHoles.right });
+      segs.push({ pos:[nW/2,H/2,D-nH], planeW:nW, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:[] });
+      segs.push({ pos:[nW,H/2,D-nH/2], rot:[0,Math.PI/2,0], planeW:nH, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:[] });
+    } else if (corner === 'tr') {
+      segs.push({ pos:[(W-nW)/2,H/2,0], planeW:W-nW, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:wallHoles.top });
+      segs.push({ pos:[W/2,H/2,D], planeW:W, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:wallHoles.bottom });
+      segs.push({ pos:[0,H/2,D/2], rot:[0,Math.PI/2,0], planeW:D, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:wallHoles.left });
+      segs.push({ pos:[W,H/2,nH+(D-nH)/2], rot:[0,Math.PI/2,0], planeW:D-nH, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:wallHoles.right });
+      // inner step: z=nH, нормаль в сторону ниши (-Z), чтоб из комнаты (z>nH) была непрозрачной
+      segs.push({ pos:[W-nW/2,H/2,nH], planeW:nW, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:[] });
+      segs.push({ pos:[W-nW,H/2,nH/2], rot:[0,Math.PI/2,0], planeW:nH, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:[] });
+    } else { // tl
+      segs.push({ pos:[nW+(W-nW)/2,H/2,0], planeW:W-nW, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:wallHoles.top });
+      segs.push({ pos:[W/2,H/2,D], planeW:W, planeH:H, nx:0,ny:0,nz:1, side:'H', holes:wallHoles.bottom });
+      segs.push({ pos:[0,H/2,nH+(D-nH)/2], rot:[0,Math.PI/2,0], planeW:D-nH, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:wallHoles.left });
+      segs.push({ pos:[W,H/2,D/2], rot:[0,Math.PI/2,0], planeW:D, planeH:H, nx:1,ny:0,nz:0, side:'V', holes:wallHoles.right });
+      segs.push({ pos:[nW/2,H/2,nH], planeW:nW, planeH:H, nx:0,ny:0,nz:-1, side:'H', holes:[] });
+      segs.push({ pos:[nW,H/2,nH/2], rot:[0,Math.PI/2,0], planeW:nH, planeH:H, nx:-1,ny:0,nz:0, side:'V', holes:[] });
+    }
+
+    return segs;
+  }, [W, D, H, room.notchW, room.notchH, room.notchCorner, wallHoles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <>
       <ambientLight intensity={0.7} />
@@ -751,29 +970,79 @@ function RoomScene({ room, items, doors = [], windows = [], niches = [], ceiling
       <pointLight position={[W * 0.5, H * 0.7, D * 0.5]} intensity={0.25} color="#fff8ee" />
 
       {/* Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0, D / 2]}>
-        <planeGeometry args={[W, D]} />
-        <meshStandardMaterial color={floorMat.tex ? '#ffffff' : room.floorColor} map={floorMat.tex ?? undefined} roughness={floorMat.roughness} metalness={floorMat.metalness} side={THREE.DoubleSide} />
-      </mesh>
+      {floorGeo ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0, D / 2]} geometry={floorGeo}>
+          <meshStandardMaterial color={floorMat.tex ? '#ffffff' : room.floorColor} map={floorMat.tex ?? undefined} roughness={floorMat.roughness} metalness={floorMat.metalness} side={THREE.DoubleSide} />
+        </mesh>
+      ) : (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, 0, D / 2]}>
+          <planeGeometry args={[W, D]} />
+          <meshStandardMaterial color={floorMat.tex ? '#ffffff' : room.floorColor} map={floorMat.tex ?? undefined} roughness={floorMat.roughness} metalness={floorMat.metalness} side={THREE.DoubleSide} />
+        </mesh>
+      )}
 
-      {/* Back wall  z=0 (top in 2D),    normal −Z */}
-      <SmartWall position={[W/2, H/2, 0]} planeW={W} planeH={H} color={room.wallColor} nx={0} ny={0} nz={-1} holes={wallHoles.top} map={wallMat.texH} roughness={wallMat.roughness} metalness={wallMat.metalness} />
-      {/* Front wall z=D (bottom in 2D), normal +Z */}
-      <SmartWall position={[W/2, H/2, D]} planeW={W} planeH={H} color={room.wallColor} nx={0} ny={0} nz={1}  holes={wallHoles.bottom} map={wallMat.texH} roughness={wallMat.roughness} metalness={wallMat.metalness} />
-      {/* Left wall  x=0 (left in 2D),   normal −X */}
-      <SmartWall position={[0,   H/2, D/2]} rotation={[0, Math.PI/2, 0]} planeW={D} planeH={H} color={room.wallColor} nx={-1} ny={0} nz={0} holes={wallHoles.left} map={wallMat.texV} roughness={wallMat.roughness} metalness={wallMat.metalness} />
-      {/* Right wall x=W (right in 2D),  normal +X */}
-      <SmartWall position={[W,   H/2, D/2]} rotation={[0, Math.PI/2, 0]} planeW={D} planeH={H} color={room.wallColor} nx={1}  ny={0} nz={0} holes={wallHoles.right} map={wallMat.texV} roughness={wallMat.roughness} metalness={wallMat.metalness} />
+      {/* Walls (4 for rectangular, 6 for L-shaped) */}
+      {wallSegments.map((seg, i) => (
+        <SmartWall
+          key={i}
+          position={seg.pos}
+          rotation={seg.rot}
+          planeW={seg.planeW} planeH={seg.planeH}
+          color={room.wallColor}
+          nx={seg.nx} ny={seg.ny} nz={seg.nz}
+          holes={seg.holes}
+          map={seg.side === 'H' ? wallMat.texH : wallMat.texV}
+          roughness={wallMat.roughness} metalness={wallMat.metalness}
+        />
+      ))}
+
       {/* Ceiling */}
-      <SmartWall position={[W/2, H, D/2]} rotation={[Math.PI/2, 0, 0]} planeW={W} planeH={D} color={room.ceilingColor} roughness={ceilMat.roughness} metalness={ceilMat.metalness} map={ceilMat.tex} nx={0} ny={1} nz={0} />
+      {floorGeo ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[W / 2, H, D / 2]} geometry={floorGeo}>
+          <meshStandardMaterial color={ceilMat.tex ? '#ffffff' : room.ceilingColor} map={ceilMat.tex ?? undefined} roughness={ceilMat.roughness} metalness={ceilMat.metalness} side={THREE.DoubleSide} />
+        </mesh>
+      ) : (
+        <SmartWall position={[W/2, H, D/2]} rotation={[Math.PI/2, 0, 0]} planeW={W} planeH={D} color={room.ceilingColor} roughness={ceilMat.roughness} metalness={ceilMat.metalness} map={ceilMat.tex} nx={0} ny={1} nz={0} />
+      )}
 
-      {niches.map(n  => <NicheMesh   key={n.id}  niche={n}  room={room} H={H} />)}
-      {items.map(item => <FurnitureMesh key={item.id} item={item} />)}
+      {niches.map(n => <NicheMesh key={n.id} niche={n} room={room} H={H} />)}
+
+      {items.map(item => (
+        <group
+          key={item.id}
+          onClick={e => { e.stopPropagation(); onSelectItem?.(item.id); }}
+          onPointerMissed={() => onSelectItem?.(null)}
+        >
+          <FurnitureMesh item={item} />
+          {/* Рамка выбранного предмета */}
+          {item.id === selectedItemId && (() => {
+            const heights = FURNITURE_3D_HEIGHTS[item.templateId];
+            const itemH = (item.customH3d ?? heights?.h ?? 800) * MM;
+            const mountedAt = (item.customMountedAt ?? heights?.mountedAt ?? 0) * MM;
+            const rot90 = item.rotation % 180 !== 0;
+            const iw = item.w * MM; const id = item.h * MM;
+            const geoW = rot90 ? id : iw; const geoD = rot90 ? iw : id;
+            const rotY = -item.rotation * (Math.PI / 180);
+            return (
+              <group position={[item.x * MM + iw / 2, mountedAt + itemH / 2, item.y * MM + id / 2]} rotation={[0, rotY, 0]}>
+                <lineSegments>
+                  <edgesGeometry args={[new THREE.BoxGeometry(geoW + 0.01, itemH + 0.01, geoD + 0.01)]} />
+                  <lineBasicMaterial color="#2563eb" />
+                </lineSegments>
+              </group>
+            );
+          })()}
+        </group>
+      ))}
+
+      {pendingItem && onFloorClick && (
+        <FloorPlacer W={W} D={D} pendingItem={pendingItem} onFloorClick={onFloorClick} />
+      )}
     </>
   );
 }
 
-export default function Room3D({ room, items, doors = [], windows = [], niches = [], ceilingHeight = 2500 }: Room3DProps) {
+export default function Room3D({ room, items, doors = [], windows = [], niches = [], ceilingHeight = 2500, pendingItem, onFloorClick, selectedItemId, onSelectItem }: Room3DProps) {
   const W = room.width  * MM;
   const D = room.height * MM;
   const H = ceilingHeight * MM;
@@ -783,13 +1052,17 @@ export default function Room3D({ room, items, doors = [], windows = [], niches =
   const target: [number, number, number] = [W / 2, H / 4, D / 2];
 
   return (
-    <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden">
+    <div className="w-full h-full bg-gray-900 rounded-lg overflow-hidden" style={{ cursor: pendingItem ? 'crosshair' : 'default' }}>
       <Canvas
         camera={{ position: camPos, fov: 45, near: 0.01, far: 200 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
       >
-        <RoomScene room={room} items={items} doors={doors} windows={windows} niches={niches} ceilingHeight={ceilingHeight} />
+        <RoomScene
+          room={room} items={items} doors={doors} windows={windows} niches={niches} ceilingHeight={ceilingHeight}
+          pendingItem={pendingItem} onFloorClick={onFloorClick} selectedItemId={selectedItemId} onSelectItem={onSelectItem}
+        />
         <OrbitControls
+          enabled={!pendingItem}
           target={target}
           minPolarAngle={0.1}
           maxPolarAngle={Math.PI * 0.82}
@@ -798,7 +1071,9 @@ export default function Room3D({ room, items, doors = [], windows = [], niches =
         />
       </Canvas>
       <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-black/40 px-2 py-1 rounded pointer-events-none">
-        🖱️ ЛКМ — вращать · Колёсико — зум · ПКМ — панорама
+        {pendingItem
+          ? '🖱️ Кликните на пол для размещения · Esc — отмена'
+          : '🖱️ ЛКМ — вращать · Колёсико — зум · ПКМ — панорама'}
       </div>
     </div>
   );

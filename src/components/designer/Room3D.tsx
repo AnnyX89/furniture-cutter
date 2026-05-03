@@ -685,9 +685,9 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
           </mesh>
         ))}
         {Array.from({ length: numDoors }, (_, i) => (
-          <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
+          <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + bodyH / 2, id / 2 + 0.01]}>
             <mesh>
-              <boxGeometry args={[dw - g * 2, bodyH - 0.08, DT]} />
+              <boxGeometry args={[dw - g * 2, bodyH - g * 2, DT]} />
               <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
             </mesh>
             <mesh position={[i < numDoors / 2 ? dw * 0.28 : -dw * 0.28, 0, DT / 2 + 0.005]}>

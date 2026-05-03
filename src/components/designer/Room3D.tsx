@@ -193,7 +193,7 @@ function buildCanvasTex(id: string, color: string): THREE.CanvasTexture | null {
   return tex;
 }
 
-type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven';
+type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack';
 
 interface Item3D {
   id: string;
@@ -210,6 +210,7 @@ interface Item3D {
   doorCount?: number;
   drawerCount?: number;
   shelfCount?: number;
+  shelfPositions?: string;
   ovenHeight?: number;
   countertopColor?: string;
   customMountedAt?: number;
@@ -343,11 +344,18 @@ interface FMProps {
   doorCount?: number;
   drawerCount?: number;
   shelfCount?: number;
+  shelfPositions?: string;
   ovenHeight?: number;
   countertopColor?: string;
 }
 
-function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount }: FMProps) {
+function parseShelfPositions(str: string | undefined, H: number): number[] | null {
+  if (!str?.trim()) return null;
+  const vals = str.split(',').map(s => parseFloat(s.trim()) * MM).filter(v => !isNaN(v) && v > 0.01 && v < H - 0.01);
+  return vals.length > 0 ? vals : null;
+}
+
+function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount, shelfPositions }: FMProps) {
   const DT = 0.018;
   const g = 0.002;
   const T = 0.018;
@@ -359,9 +367,14 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
     </mesh>
   );
 
-  if (cabinetType === 'open') {
+  if (cabinetType === 'open' || cabinetType === 'plate-rack') {
+    const customPos = parseShelfPositions(shelfPositions, itemH);
     const shelves = shelfCount ?? Math.max(2, Math.floor(itemH / 0.35));
     const spacing = itemH / (shelves + 1);
+    const shelfYs: number[] = customPos
+      ? customPos.map(p => -itemH / 2 + p)
+      : Array.from({ length: shelves - 1 }, (_, i) => -itemH / 2 + spacing * (i + 1));
+
     return (
       <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
         <mesh position={[-iw / 2 + T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
@@ -369,11 +382,21 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
         <mesh position={[0, itemH / 2 - T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
         <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
         <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, itemH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.75} /></mesh>
-        {Array.from({ length: shelves - 1 }, (_, i) => (
-          <mesh key={i} position={[0, -itemH / 2 + spacing * (i + 1), 0]}>
+        {shelfYs.map((sy, i) => (
+          <mesh key={i} position={[0, sy, 0]}>
             <boxGeometry args={[iw - T * 2, T, id - T]} /><meshStandardMaterial color={color} roughness={0.75} />
           </mesh>
         ))}
+        {cabinetType === 'plate-rack' && shelfYs.map((sy, si) => {
+          const divCount = Math.max(3, Math.round((iw - T * 2) / 0.085));
+          const dSpacing = (iw - T * 2) / (divCount + 1);
+          return Array.from({ length: divCount }, (_, di) => (
+            <mesh key={`${si}-${di}`} position={[-iw / 2 + T + dSpacing * (di + 1), sy + 0.09, 0]}>
+              <boxGeometry args={[0.006, 0.18, id - T * 2]} />
+              <meshStandardMaterial color="#9ca3af" roughness={0.4} metalness={0.5} />
+            </mesh>
+          ));
+        })}
       </group>
     );
   }
@@ -420,7 +443,10 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
   const doors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
   const dw = iw / doors;
   const numShelves = shelfCount ?? 0;
-  const shelfSpacing = numShelves > 0 ? itemH / (numShelves + 1) : 0;
+  const doorShelfPos = parseShelfPositions(shelfPositions, itemH);
+  const shelfYsDoors: number[] = doorShelfPos
+    ? doorShelfPos.map(p => -itemH / 2 + p)
+    : numShelves > 0 ? Array.from({ length: numShelves }, (_, i) => -itemH / 2 + itemH / (numShelves + 1) * (i + 1)) : [];
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
       <mesh position={[-iw / 2 + T / 2, 0, 0]}><boxGeometry args={[T, itemH, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
@@ -428,8 +454,8 @@ function WardrobeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metal
       <mesh position={[0, itemH / 2 - T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
       <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
       <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, itemH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
-      {numShelves > 0 && Array.from({ length: numShelves }, (_, i) => (
-        <mesh key={i} position={[0, -itemH / 2 + shelfSpacing * (i + 1), 0]}>
+      {shelfYsDoors.map((sy, i) => (
+        <mesh key={i} position={[0, sy, 0]}>
           <boxGeometry args={[iw - T * 2, T, id - T]} /><meshStandardMaterial color={color} roughness={0.75} />
         </mesh>
       ))}
@@ -674,13 +700,13 @@ function HoodMesh({ iw, itemH, id, ix, iy, iz, rotY }: FMProps) {
   );
 }
 
-function CooktopMesh({ iw, itemH, id, ix, iy, iz, rotY }: FMProps) {
+function CooktopMesh({ iw, itemH, id, ix, iy, iz, rotY, color }: FMProps) {
   const burnerR = Math.min(iw, id) * 0.12;
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
       <mesh>
         <boxGeometry args={[iw, itemH, id]} />
-        <meshStandardMaterial color="#111827" roughness={0.05} metalness={0.3} />
+        <meshStandardMaterial color={color} roughness={0.05} metalness={0.3} />
       </mesh>
       {[-id * 0.22, id * 0.22].map((bz, i) => (
         <mesh key={i} position={[0, itemH / 2 + 0.001, bz]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -710,7 +736,7 @@ function FurnitureMesh({ item }: { item: Item3D }) {
   const geoW = rot90 ? id : iw;
   const geoD = rot90 ? iw : id;
 
-  const props: FMProps = { iw: geoW, itemH, id: geoD, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness, cabinetType: item.cabinetType, doorCount: item.doorCount, drawerCount: item.drawerCount, shelfCount: item.shelfCount, ovenHeight: item.ovenHeight, countertopColor: item.countertopColor };
+  const props: FMProps = { iw: geoW, itemH, id: geoD, ix, iy, iz, rotY, color: item.color, roughness: facade.roughness, metalness: facade.metalness, cabinetType: item.cabinetType, doorCount: item.doorCount, drawerCount: item.drawerCount, shelfCount: item.shelfCount, shelfPositions: item.shelfPositions, ovenHeight: item.ovenHeight, countertopColor: item.countertopColor };
   const tid = item.templateId;
 
   if (tid.includes('bookshelf') || tid.includes('bookcase'))  return <BookcaseMesh {...props} />;

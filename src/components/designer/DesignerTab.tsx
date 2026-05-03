@@ -82,7 +82,7 @@ interface Niche {
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 
-export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven';
+export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack';
 
 interface PlacedItem {
   id: string;
@@ -103,6 +103,7 @@ interface PlacedItem {
   doorCount?: number;
   drawerCount?: number;
   shelfCount?: number;
+  shelfPositions?: string;
   ovenHeight?: number;
   countertopColor?: string;
 }
@@ -802,14 +803,17 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 {applianceResults.map((a: ApplianceModel) => (
                   <button key={a.id}
                     onClick={() => {
-                      const catMap: Record<string, string> = {
-                        'Вытяжка': 'k-hood', 'Варочная': 'k-cooktop-2',
-                        'Холодильник': 'k-fridge', 'Встраиваемый холодильник': 'k-fridge',
-                        'Посудомоечная': 'k-dishwasher', 'Плита': 'k-stove',
-                        'Мойка': 'k-sink',
+                      const catMap: Record<string, { tid: string; ct?: CabinetType }> = {
+                        'Вытяжка': { tid: 'k-hood' }, 'Варочная': { tid: 'k-cooktop-2' },
+                        'Холодильник': { tid: 'k-fridge' }, 'Встраиваемый холодильник': { tid: 'k-fridge' },
+                        'Посудомоечная': { tid: 'k-dishwasher' }, 'Плита': { tid: 'k-stove' },
+                        'Мойка': { tid: 'k-sink' }, 'Духовой шкаф': { tid: 'k-base-60', ct: 'oven' },
+                        'Микроволновка': { tid: 'k-base-60' },
                       };
+                      const mapped = catMap[a.category] ?? { tid: 'custom' };
                       const it: PlacedItem = {
-                        id: uuid(), templateId: catMap[a.category] ?? 'custom',
+                        id: uuid(), templateId: mapped.tid,
+                        ...(mapped.ct ? { cabinetType: mapped.ct } : {}),
                         name: `${a.brand} ${a.model}`,
                         x: Math.round((room.width / 2 - a.w / 2) / GRID) * GRID,
                         y: Math.round((room.height / 2 - a.h / 2) / GRID) * GRID,
@@ -1035,8 +1039,8 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             {/* Тип наполнения */}
             <div>
               <div className="text-xs text-gray-500 mb-1">Тип наполнения (3D)</div>
-              <div className="grid grid-cols-5 gap-1">
-                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе'],['oven','🔥','База']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
+              <div className="grid grid-cols-3 gap-1">
+                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе'],['oven','🔥','База'],['plate-rack','🍽️','Тарелки']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
                   <button key={type}
                     onClick={() => setItems(p => p.map(i => i.id===selected ? {...i,cabinetType:type} : i))}
                     className={`text-xs py-1 rounded border leading-tight flex flex-col items-center gap-0.5 ${(selectedItem.cabinetType??'doors')===type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>
@@ -1057,17 +1061,28 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
               </div>
             )}
-            {(selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'doors' || selectedItem.cabinetType === undefined || selectedItem.cabinetType === 'sliding') && (
-              <div>
-                <label className="text-xs text-gray-400">
-                  {selectedItem.cabinetType === 'open' ? 'Кол-во полок (авто если пусто)' : 'Полки внутри (0 = нет)'}
-                </label>
-                <input type="number" min="0" max="20" step="1"
-                  value={selectedItem.shelfCount ?? (selectedItem.cabinetType === 'open' ? '' : 0)}
-                  placeholder={selectedItem.cabinetType === 'open' ? 'авто' : '0'}
-                  onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfCount: e.target.value !== '' ? Math.max(0,+e.target.value) : undefined} : i))}
-                  onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
-                  className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+            {(selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'doors' || selectedItem.cabinetType === undefined || selectedItem.cabinetType === 'sliding' || selectedItem.cabinetType === 'plate-rack') && (
+              <div className="space-y-1">
+                <div>
+                  <label className="text-xs text-gray-400">
+                    {selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'plate-rack' ? 'Кол-во полок (авто если пусто)' : 'Полки внутри (0 = нет)'}
+                  </label>
+                  <input type="number" min="0" max="20" step="1"
+                    value={selectedItem.shelfCount ?? (selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'plate-rack' ? '' : 0)}
+                    placeholder={selectedItem.cabinetType === 'open' || selectedItem.cabinetType === 'plate-rack' ? 'авто' : '0'}
+                    onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfCount: e.target.value !== '' ? Math.max(0,+e.target.value) : undefined} : i))}
+                    onFocus={e => { const t = e.target; setTimeout(() => t.select(), 0); }}
+                    className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400">Высоты полок (мм от низа, через запятую)</label>
+                  <input type="text"
+                    value={selectedItem.shelfPositions ?? ''}
+                    placeholder="напр. 200, 380, 530"
+                    onChange={e => setItems(p => p.map(i => i.id===selected ? {...i, shelfPositions: e.target.value || undefined} : i))}
+                    className="w-full border rounded px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white mt-0.5" />
+                  <div className="text-[10px] text-gray-400 mt-0.5">Задаёт точные позиции — переопределяет кол-во</div>
+                </div>
               </div>
             )}
             {(selectedItem.cabinetType === 'drawers' || selectedItem.cabinetType === 'oven') && (

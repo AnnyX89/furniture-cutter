@@ -83,6 +83,7 @@ export const APPLIANCE_CATALOG: ApplianceModel[] = [
   { id: 'wg-bdw4533', brand: 'Weissgauff', model: 'BDW 4533 D (узкая)', category: 'Посудомоечная', w: 450, h: 600, color: '#e2e8f0', icon: '🍽️' },
   { id: 'wg-ov692', brand: 'Weissgauff', model: 'OV W 692 (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#374151', icon: '🍕' },
   { id: 'wg-eov29', brand: 'Weissgauff', model: 'EOV 29 PD (встраиваемый)', category: 'Духовой шкаф', w: 595, h: 548, color: '#374151', icon: '🍕' },
+  { id: 'wg-eoy456', brand: 'Weissgauff', model: 'EOY 456 W (встраиваемый, 45см)', category: 'Духовой шкаф', w: 450, h: 565, color: '#1f2937', icon: '🍕' },
   { id: 'wg-hi641', brand: 'Weissgauff', model: 'HI 641 B (варочная)', category: 'Плита', w: 575, h: 505, color: '#1e293b', icon: '🔥' },
   { id: 'wg-wm4148', brand: 'Weissgauff', model: 'WM 4148 DC', category: 'Стиральная машина', w: 600, h: 550, color: '#f0f4f8', icon: '🧺' },
   { id: 'wg-wm4758', brand: 'Weissgauff', model: 'WM 4758 D (узкая)', category: 'Стиральная машина', w: 470, h: 550, color: '#f0f4f8', icon: '🧺' },

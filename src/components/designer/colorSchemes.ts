@@ -134,7 +134,7 @@ export const COLOR_SCHEMES: ColorScheme[] = [
 export const FURNITURE_3D_HEIGHTS: Record<string, { h: number; mountedAt?: number }> = {
   // Кухня нижние
   'k-base-40': { h: 850 }, 'k-base-50': { h: 850 }, 'k-base-60': { h: 850 }, 'k-base-80': { h: 850 },
-  'k-corner': { h: 850 }, 'k-sink': { h: 850 }, 'k-stove': { h: 850 }, 'k-dishwasher': { h: 850 },
+  'k-corner': { h: 850 }, 'k-sink': { h: 850 }, 'k-sink-68': { h: 850 }, 'k-stove': { h: 850 }, 'k-dishwasher': { h: 850 },
   'k-cooktop-2': { h: 20, mountedAt: 850 },
   // Кухня верхние
   'k-wall-40': { h: 720, mountedAt: 1380 }, 'k-wall-60': { h: 720, mountedAt: 1380 }, 'k-wall-80': { h: 720, mountedAt: 1380 },

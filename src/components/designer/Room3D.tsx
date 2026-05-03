@@ -689,6 +689,41 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
   );
 }
 
+function SinkMesh({ iw, itemH, id, ix, iy, iz, rotY, color, countertopColor = '#6b7280' }: FMProps) {
+  const ctT = 0.04;
+  const bodyH = itemH - ctT;
+  const ovh = 0.02;
+  const bW = iw * 0.82;
+  const bD = id * 0.72;
+  const topY = -itemH / 2 + bodyH + ctT;
+  return (
+    <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
+      <mesh position={[0, -itemH / 2 + bodyH / 2, 0]}>
+        <boxGeometry args={[iw, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.75} />
+      </mesh>
+      <mesh position={[0, -itemH / 2 + bodyH + ctT / 2, 0]}>
+        <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color={countertopColor} roughness={0.3} metalness={countertopColor === '#c4c2c0' ? 0.7 : 0.08} />
+      </mesh>
+      {/* Sink basin */}
+      <mesh position={[0, topY + 0.003, 0]}>
+        <boxGeometry args={[bW, 0.006, bD]} /><meshStandardMaterial color="#c8cdd3" roughness={0.15} metalness={0.65} />
+      </mesh>
+      {/* Drain */}
+      <mesh position={[bW * 0.22, topY + 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.018, 0.018, 0.008, 16]} /><meshStandardMaterial color="#4b5563" roughness={0.2} metalness={0.9} />
+      </mesh>
+      {/* Faucet body */}
+      <mesh position={[-bW * 0.3, topY + 0.05, -bD * 0.32]}>
+        <cylinderGeometry args={[0.014, 0.016, 0.1, 8]} /><meshStandardMaterial color="#9ca3af" roughness={0.15} metalness={0.75} />
+      </mesh>
+      {/* Faucet spout */}
+      <mesh position={[-bW * 0.3, topY + 0.11, -bD * 0.32 + 0.035]} rotation={[0.6, 0, 0]}>
+        <cylinderGeometry args={[0.009, 0.009, 0.09, 8]} /><meshStandardMaterial color="#9ca3af" roughness={0.15} metalness={0.75} />
+      </mesh>
+    </group>
+  );
+}
+
 function FridgeMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness }: FMProps) {
   const DT = 0.018;
   const freezerH = itemH * 0.32;
@@ -786,7 +821,8 @@ function FurnitureMesh({ item }: { item: Item3D }) {
   if (tid.includes('bed'))                                     return <BedMesh {...props} />;
   if (tid === 'k-hood') return <HoodMesh {...props} />;
   if (tid === 'k-cooktop-2') return <CooktopMesh {...props} />;
-  if (tid.startsWith('k-base') || tid === 'k-sink' || tid === 'k-stove' || tid === 'k-dishwasher' || tid === 'k-corner') return <KitchenBaseMesh {...props} />;
+  if (tid === 'k-sink' || tid === 'k-sink-68') return <SinkMesh {...props} />;
+  if (tid.startsWith('k-base') || tid === 'k-stove' || tid === 'k-dishwasher' || tid === 'k-corner') return <KitchenBaseMesh {...props} />;
   if (tid === 'k-fridge') return <FridgeMesh {...props} />;
 
   return (

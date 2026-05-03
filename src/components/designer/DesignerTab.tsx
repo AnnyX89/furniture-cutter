@@ -892,7 +892,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             {/* Размеры модуля */}
             <div className="grid grid-cols-2 gap-1.5 mb-1.5">
               <div>
-                <label className="text-xs text-gray-400">Ш (мм)</label>
+                <label className="text-xs text-gray-400">{(selectedItem.rotation === 90 || selectedItem.rotation === 270) ? 'Г (мм)' : 'Ш (мм)'}</label>
                 <input type="number" step="100" min="100" max="5000"
                   value={selectedItem.w}
                   onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, w: +e.target.value || i.w } : i))}
@@ -901,7 +901,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                   className="w-full border rounded px-1.5 py-0.5 text-xs text-center font-medium focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white" />
               </div>
               <div>
-                <label className="text-xs text-gray-400">Г (мм)</label>
+                <label className="text-xs text-gray-400">{(selectedItem.rotation === 90 || selectedItem.rotation === 270) ? 'Ш (мм)' : 'Г (мм)'}</label>
                 <input type="number" step="100" min="100" max="5000"
                   value={selectedItem.h}
                   onChange={e => setItems(p => p.map(i => i.id === selected ? { ...i, h: +e.target.value || i.h } : i))}

@@ -575,7 +575,7 @@ function DresserMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metaln
   );
 }
 
-function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount: _s, ovenHeight, countertopColor = '#6b7280' }: FMProps) { void _s;
+function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, metalness, cabinetType = 'doors', doorCount, drawerCount, shelfCount, shelfPositions, ovenHeight, countertopColor = '#6b7280' }: FMProps) {
   const ctT = 0.04;
   const bodyH = itemH - ctT;
   const ovh = 0.02;
@@ -619,22 +619,38 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
       </>
     );
   } else {
-    // doors — split into panels
+    // doors — with optional interior shelves
+    const T = 0.018;
     const numDoors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
     const dw = iw / numDoors;
     const DT = 0.016;
-    facade = Array.from({ length: numDoors }, (_, i) => (
-      <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
-        <mesh>
-          <boxGeometry args={[dw - g * 2, bodyH - 0.08, DT]} />
-          <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
-        </mesh>
-        <mesh position={[i < numDoors / 2 ? dw * 0.28 : -dw * 0.28, 0, DT / 2 + 0.005]}>
-          <boxGeometry args={[0.008, bodyH * 0.38, 0.006]} />
-          <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
-        </mesh>
-      </group>
-    ));
+    const numShelves = shelfCount ?? 0;
+    const customPos = parseShelfPositions(shelfPositions, bodyH);
+    const shelfYs = customPos
+      ? customPos.map(p => -itemH / 2 + p)
+      : numShelves > 0 ? Array.from({ length: numShelves }, (_, i) => -itemH / 2 + bodyH / (numShelves + 1) * (i + 1)) : [];
+    facade = (
+      <>
+        {shelfYs.map((sy, i) => (
+          <mesh key={`shelf-${i}`} position={[0, sy, 0]}>
+            <boxGeometry args={[iw - T * 2, T, id - T]} />
+            <meshStandardMaterial color={color} roughness={0.75} />
+          </mesh>
+        ))}
+        {Array.from({ length: numDoors }, (_, i) => (
+          <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + bodyH * 0.5, id / 2 + 0.01]}>
+            <mesh>
+              <boxGeometry args={[dw - g * 2, bodyH - 0.08, DT]} />
+              <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+            </mesh>
+            <mesh position={[i < numDoors / 2 ? dw * 0.28 : -dw * 0.28, 0, DT / 2 + 0.005]}>
+              <boxGeometry args={[0.008, bodyH * 0.38, 0.006]} />
+              <meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+            </mesh>
+          </group>
+        ))}
+      </>
+    );
   }
 
   return (

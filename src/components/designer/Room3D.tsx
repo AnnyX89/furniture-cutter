@@ -592,7 +592,28 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
       </group>
     ));
   } else if (cabinetType === 'open') {
-    facade = null;
+    const T = 0.018;
+    const customPos = parseShelfPositions(shelfPositions, bodyH);
+    const numShelves = shelfCount ?? Math.max(1, Math.floor(bodyH / 0.22));
+    const shelfYs = customPos
+      ? customPos.map(p => -itemH / 2 + p)
+      : Array.from({ length: numShelves - 1 }, (_, i) => -itemH / 2 + bodyH / numShelves * (i + 1));
+    const bY = -itemH / 2 + bodyH / 2;
+    facade = (
+      <>
+        {/* Frame panels instead of solid body */}
+        <mesh position={[-iw / 2 + T / 2, bY, 0]}><boxGeometry args={[T, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+        <mesh position={[iw / 2 - T / 2, bY, 0]}><boxGeometry args={[T, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+        <mesh position={[0, -itemH / 2 + T / 2, 0]}><boxGeometry args={[iw, T, id]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+        <mesh position={[0, 0, -id / 2 + T / 2]}><boxGeometry args={[iw - T * 2, bodyH - T * 2, T]} /><meshStandardMaterial color={color} roughness={0.8} /></mesh>
+        {shelfYs.map((sy, i) => (
+          <mesh key={i} position={[0, sy, 0]}>
+            <boxGeometry args={[iw - T * 2, T, id - T]} />
+            <meshStandardMaterial color={color} roughness={0.75} />
+          </mesh>
+        ))}
+      </>
+    );
   } else if (cabinetType === 'oven') {
     // Bottom: 1–N drawers; top: open oven cavity
     const numDrawers = drawerCount ?? 1;
@@ -655,9 +676,11 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
 
   return (
     <group position={[ix, iy, iz]} rotation={[0, rotY, 0]}>
-      <mesh position={[0, -itemH / 2 + bodyH / 2, 0]}>
-        <boxGeometry args={[iw, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.75} />
-      </mesh>
+      {cabinetType !== 'open' && (
+        <mesh position={[0, -itemH / 2 + bodyH / 2, 0]}>
+          <boxGeometry args={[iw, bodyH, id]} /><meshStandardMaterial color={color} roughness={0.75} />
+        </mesh>
+      )}
       <mesh position={[0, -itemH / 2 + bodyH + ctT / 2, 0]}>
         <boxGeometry args={[iw + ovh, ctT, id + ovh]} /><meshStandardMaterial color={countertopColor} roughness={0.3} metalness={countertopColor === '#c4c2c0' ? 0.7 : 0.08} />
       </mesh>

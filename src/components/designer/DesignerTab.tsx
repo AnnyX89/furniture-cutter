@@ -82,7 +82,7 @@ interface Niche {
 interface Door { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; }
 interface Window { id: string; wall: 'top'|'bottom'|'left'|'right'; pos: number; size: number; fromEnd?: boolean; winHeight?: number; winSill?: number; }
 
-export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack';
+export type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack' | 'drawer-doors';
 
 interface PlacedItem {
   id: string;
@@ -1040,7 +1040,7 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
             <div>
               <div className="text-xs text-gray-500 mb-1">Тип наполнения (3D)</div>
               <div className="grid grid-cols-3 gap-1">
-                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе'],['oven','🔥','База'],['plate-rack','🍽️','Тарелки']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
+                {([['doors','🚪','Двери'],['drawers','📦','Ящики'],['open','📂','Откр.'],['sliding','↔️','Купе'],['oven','🔥','База'],['plate-rack','🍽️','Тарелки'],['drawer-doors','📦🚪','Ящ+Дв']] as [CabinetType,string,string][]).map(([type,icon,label]) => (
                   <button key={type}
                     onClick={() => setItems(p => p.map(i => i.id===selected ? {...i,cabinetType:type} : i))}
                     className={`text-xs py-1 rounded border leading-tight flex flex-col items-center gap-0.5 ${(selectedItem.cabinetType??'doors')===type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'}`}>

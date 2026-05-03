@@ -193,7 +193,7 @@ function buildCanvasTex(id: string, color: string): THREE.CanvasTexture | null {
   return tex;
 }
 
-type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack';
+type CabinetType = 'doors' | 'drawers' | 'open' | 'sliding' | 'oven' | 'plate-rack' | 'drawer-doors';
 
 interface Item3D {
   id: string;
@@ -637,6 +637,32 @@ function KitchenBaseMesh({ iw, itemH, id, ix, iy, iz, rotY, color, roughness, me
           <boxGeometry args={[iw - g * 2, ovenH - g * 2, 0.016]} />
           <meshStandardMaterial color="#111111" roughness={0.9} />
         </mesh>
+      </>
+    );
+  } else if (cabinetType === 'drawer-doors') {
+    // Top drawer + doors below
+    const drawerH = Math.min(bodyH * 0.25, 0.22);
+    const doorsH = bodyH - drawerH;
+    const numDoors = doorCount ?? Math.max(1, Math.round(iw / 0.55));
+    const dw = iw / numDoors;
+    const DT = 0.016;
+    const g2 = 0.003;
+    facade = (
+      <>
+        {/* Top drawer */}
+        <group position={[0, -itemH / 2 + drawerH / 2, id / 2 + 0.01]}>
+          <mesh><boxGeometry args={[iw - g * 2, drawerH - g * 2, DT]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+          <mesh position={[0, 0, DT / 2 + 0.005]}><boxGeometry args={[iw * 0.25, 0.01, 0.008]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} /></mesh>
+        </group>
+        {/* Doors below */}
+        {Array.from({ length: numDoors }, (_, i) => (
+          <group key={i} position={[-iw / 2 + dw * (i + 0.5), -itemH / 2 + drawerH + doorsH / 2, id / 2 + 0.01]}>
+            <mesh><boxGeometry args={[dw - g2 * 2, doorsH - g2 * 2, DT]} /><meshStandardMaterial color={color} roughness={roughness} metalness={metalness} /></mesh>
+            <mesh position={[i < numDoors / 2 ? dw * 0.28 : -dw * 0.28, 0, DT / 2 + 0.005]}>
+              <boxGeometry args={[0.008, doorsH * 0.38, 0.006]} /><meshStandardMaterial color="#9ca3af" roughness={0.3} metalness={0.8} />
+            </mesh>
+          </group>
+        ))}
       </>
     );
   } else {

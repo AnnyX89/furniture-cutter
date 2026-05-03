@@ -802,8 +802,14 @@ export default function DesignerTab({ onSendToCutting, firstMaterialId = '', pro
                 {applianceResults.map((a: ApplianceModel) => (
                   <button key={a.id}
                     onClick={() => {
+                      const catMap: Record<string, string> = {
+                        'Вытяжка': 'k-hood', 'Варочная': 'k-cooktop-2',
+                        'Холодильник': 'k-fridge', 'Встраиваемый холодильник': 'k-fridge',
+                        'Посудомоечная': 'k-dishwasher', 'Плита': 'k-stove',
+                        'Мойка': 'k-sink',
+                      };
                       const it: PlacedItem = {
-                        id: uuid(), templateId: 'custom',
+                        id: uuid(), templateId: catMap[a.category] ?? 'custom',
                         name: `${a.brand} ${a.model}`,
                         x: Math.round((room.width / 2 - a.w / 2) / GRID) * GRID,
                         y: Math.round((room.height / 2 - a.h / 2) / GRID) * GRID,

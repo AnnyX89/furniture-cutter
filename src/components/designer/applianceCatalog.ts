@@ -101,6 +101,17 @@ export const APPLIANCE_CATALOG: ApplianceModel[] = [
   { id: 'haier-hw80', brand: 'Haier', model: 'HW80-BP14979S', category: 'Стиральная машина', w: 600, h: 590, color: '#f0f4f8', icon: '🧺' },
   { id: 'haier-hmc255', brand: 'Haier', model: 'HMC255BSSX (настольная)', category: 'Микроволновка', w: 475, h: 361, color: '#374151', icon: '📡' },
 
+  // ── Вытяжки ──────────────────────────────────────────────────────────────
+  { id: 'weissgauff-box1200', brand: 'Weissgauff', model: 'BOX 1200 WH (встраиваемая)', category: 'Вытяжка', w: 520, h: 291, color: '#d1d5db', icon: '💨' },
+  { id: 'bosch-dwb66', brand: 'Bosch', model: 'DWB66BC50 (встраиваемая)', category: 'Вытяжка', w: 600, h: 330, color: '#d1d5db', icon: '💨' },
+  { id: 'electrolux-lfp316', brand: 'Electrolux', model: 'LFP316S (встраиваемая)', category: 'Вытяжка', w: 600, h: 300, color: '#d1d5db', icon: '💨' },
+  { id: 'gorenje-bho600', brand: 'Gorenje', model: 'BHO600E10X (встраиваемая)', category: 'Вытяжка', w: 600, h: 320, color: '#d1d5db', icon: '💨' },
+
+  // ── Варочные панели ───────────────────────────────────────────────────────
+  { id: 'weissgauff-hi641b', brand: 'Weissgauff', model: 'HI 641 B (2 конфорки газ)', category: 'Варочная', w: 290, h: 510, color: '#1f2937', icon: '🔥' },
+  { id: 'bosch-ppq716b', brand: 'Bosch', model: 'PPQ716B21E (варочная 2К)', category: 'Варочная', w: 290, h: 520, color: '#1f2937', icon: '🔥' },
+  { id: 'electrolux-kgs-2', brand: 'Electrolux', model: 'KGS2100X (варочная 2К)', category: 'Варочная', w: 300, h: 510, color: '#1f2937', icon: '🔥' },
+
   // ── Мойки кухонные ───────────────────────────────────────────────────────
   { id: 'wulian-680', brand: 'Wulian', model: '680×460 Белая с краном (накладная)', category: 'Мойка', w: 680, h: 460, color: '#f8f8f8', icon: '🚰' },
   { id: 'sink-franke-610', brand: 'Franke', model: 'MRX 610-52 (врезная)', category: 'Мойка', w: 610, h: 500, color: '#e2e8f0', icon: '🚰' },
